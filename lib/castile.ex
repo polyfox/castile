@@ -21,11 +21,8 @@ defmodule Castile do
     options = [dir_list: include_dir]
 
     # parse wsdl
-    #{model, operations} = parse_wsdls([wsdl_file], prefix, wsdl_model, options)
-    res = parse_wsdls([wsdl_file], prefix, wsdl_model, options, {nil, []})
+    {model, operations} = parse_wsdls([wsdl_file], prefix, wsdl_model, options, {nil, []})
 
-    #%% parse Wsdl
-    #{Model, Operations} = parseWsdls([WsdlFile], Prefix, WsdlModel2, Options, {undefined, []}),
     #%% TODO: add files as required
     #%% now compile envelope.xsd, and add Model
     #{ok, EnvelopeModel} = erlsom:compile_xsd_file(filename:join([Path, "envelope.xsd"]),
@@ -35,7 +32,8 @@ defmodule Castile do
     ##wsdl{operations = Operations, model = SoapModel2}.
   end
 
-  # parseWsdls([WsdlFile | Tail], Prefix, WsdlModel, Options, {AccModel, AccOperations}) ->
+  def parse_wsdls([], _prefix, _wsdl_model, _opts, acc), do: acc
+
   def parse_wsdls([path | rest], prefix, wsdl_model, opts, {acc_model, acc_operations}) do
     {:ok, wsdl_file} = get_file(String.trim(path))
     {:ok, parsed, _} = :erlsom.scan(wsdl_file, wsdl_model)
@@ -54,13 +52,14 @@ defmodule Castile do
     ports = get_ports(parsed)
     operations = get_operations(parsed, ports)
     imports = get_imports(parsed)
-    # Acc2 = {Model2, Operations ++ AccOperations},
-    # %% process imports (recursively, so that imports in the imported files are
-    # %% processed as well).
-    # %% For the moment, the namespace is ignored on operations etc.
-    # %% this makes it a bit easier to deal with imported wsdl's.
-    # Acc3 = parseWsdls(Imports, Prefix, WsdlModel, Options, Acc2),
-    # parseWsdls(Tail, Prefix, WsdlModel, Options, Acc3).
+
+    acc = {model, operations ++ acc_operations}
+    # process imports (recursively, so that imports in the imported files are
+    # processed as well).
+    # For the moment, the namespace is ignored on operations etc.
+    # this makes it a bit easier to deal with imported wsdl's.
+    acc = parse_wsdls(imports, prefix, wsdl_model, opts, acc)
+    parse_wsdls(rest, prefix, wsdl_model, opts, acc)
   end
 
   # compile each of the schemas, and add it to the model.
@@ -159,6 +158,6 @@ defmodule Castile do
   def get_imports(parsed_wsdl) do
     parsed_wsdl
     |> get_toplevel_elements(:"wsdl:tImport")
-    |> Enum.map(fn {:"wsdl:tImport", _attrs, _namespace, location, _docs} -> location end)
+    |> Enum.map(fn {:"wsdl:tImport", _attrs, _namespace, location, _docs} -> to_string(location) end)
   end
 end
