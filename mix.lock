@@ -1,0 +1,4 @@
+%{
+  "erlsom": {:hex, :erlsom, "1.4.1", "53dbacf35adfea6f0714fd0e4a7b0720d495e88c5e24e12c5dc88c7b62bd3e49", [:rebar3], [], "hexpm"},
+  "xml_builder": {:hex, :xml_builder, "2.1.0", "c249d5339427c13cae11e9d9d0e8b40d25d228b9ecc54029f24017385e60280b", [:mix], [], "hexpm"},
+}
