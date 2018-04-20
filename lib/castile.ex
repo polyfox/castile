@@ -44,16 +44,16 @@ defmodule Castile do
     # Now we need to build a list: [{Namespace, Prefix, Xsd}, ...] for all the Xsds in the WSDL.
     # This list is used when a schema inlcudes one of the other schemas. The AXIS java2wsdl
     # generates wsdls that depend on this feature.
-    imports = Enum.map(xsds, fn xsd ->
+    import_list = Enum.map(xsds, fn xsd ->
       {:erlsom_lib.getTargetNamespaceFromXsd(xsd), nil, xsd}
     end)
 
     # TODO: pass the right options here
-    model = add_schemas(xsds, prefix, opts, imports, acc_model)
+    model = add_schemas(xsds, prefix, opts, import_list, acc_model)
 
     ports = get_ports(parsed)
     operations = get_operations(parsed, ports)
-    # Imports = getImports(ParsedWsdl),
+    imports = get_imports(parsed)
     # Acc2 = {Model2, Operations ++ AccOperations},
     # %% process imports (recursively, so that imports in the imported files are
     # %% processed as well).
@@ -154,5 +154,11 @@ defmodule Castile do
         end
       end)
     end)
+  end
+
+  def get_imports(parsed_wsdl) do
+    parsed_wsdl
+    |> get_toplevel_elements(:"wsdl:tImport")
+    |> Enum.map(fn {:"wsdl:tImport", _attrs, _namespace, location, _docs} -> location end)
   end
 end

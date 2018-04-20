@@ -1,6 +1,9 @@
 # Castile
 
-**TODO: Add description**
+Castile is an Elixir incarnation of [Detergent](https://github.com/devinus/detergent), the SOAP API client.
+
+We really wanted to use it but ran into some issues and also wanted to use
+HTTPoison as the HTTP client.
 
 ## Installation
 
