@@ -52,7 +52,7 @@ defmodule Castile do
     model = add_schemas(xsds, prefix, opts, imports, acc_model)
 
     ports = get_ports(parsed)
-    # Operations = getOperations(ParsedWsdl, Ports),
+    operations = get_operations(parsed, ports)
     # Imports = getImports(ParsedWsdl),
     # Acc2 = {Model2, Operations ++ AccOperations},
     # %% process imports (recursively, so that imports in the imported files are
@@ -124,7 +124,6 @@ defmodule Castile do
       {:"wsdl:tService", _attrs, service_name, _docs, _choice, ports} = service
       Enum.reduce(ports, acc, fn
         {:"wsdl:tPort", _attrs, name, binding, _docs, choice}, acc ->
-          IO.puts "port!"
           Enum.reduce(choice, acc, fn
             {:"soap:tAddress", _attrs, _required, location}, acc ->
               [%{service: service_name, port: name, binding: binding, address: location} | acc]
@@ -135,4 +134,25 @@ defmodule Castile do
     end)
   end
 
+
+# %% returns [#operation{}]
+  def get_operations(parsed_wsdl, ports) do
+    bindings = get_toplevel_elements(parsed_wsdl, :"wsdl:tBinding")
+    Enum.reduce(bindings, [], fn {:"wsdl:tBinding", _attrs, binding, _type, _docs, _choice, ops}, acc ->
+      IO.inspect ops
+      Enum.reduce(ops, acc, fn {:"wsdl:tBindingOperation", _attrs, name, _docs, choice, _input, _output, _fault}, acc ->
+        IO.inspect choice
+        case choice do
+          [{:"soap:tOperation", _attrs, _required, action, _style}] ->
+            # lookup Binding in Ports, and create a combined result
+            found = Enum.filter(ports, fn port -> :erlsom_lib.localName(port[:binding]) == binding end)
+            operations = Enum.map(found, fn port ->
+              %{service: port.service, port: port.port, operation: name, binding: binding, address: port.address, action: action}
+            end)
+            operations ++ acc
+          _ ->  acc
+        end
+      end)
+    end)
+  end
 end
