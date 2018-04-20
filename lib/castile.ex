@@ -51,7 +51,7 @@ defmodule Castile do
     # TODO: pass the right options here
     model = add_schemas(xsds, prefix, opts, imports, acc_model)
 
-    # Ports = getPorts(ParsedWsdl),
+    ports = get_ports(parsed)
     # Operations = getOperations(ParsedWsdl, Ports),
     # Imports = getImports(ParsedWsdl),
     # Acc2 = {Model2, Operations ++ AccOperations},
@@ -98,7 +98,7 @@ defmodule Castile do
   def extract_wsdl_xsds(wsdl) do
     case get_toplevel_elements(wsdl, :"wsdl:tTypes") do
       [{:"wsdl:tTypes", _attrs, _docs, choice}] -> choice
-      [] -> nil
+      [] -> []
     end
   end
 
@@ -106,8 +106,6 @@ defmodule Castile do
     # TODO: reduce using function sigs instead
     Enum.reduce(choice, [], fn
       {:"wsdl:anyTopLevelOptionalElement", _attrs, tuple}, acc ->
-        IO.puts "in there"
-        IO.inspect tuple
         case elem(tuple, 0) do
           ^type -> [tuple | acc]
           _ -> acc
@@ -115,4 +113,26 @@ defmodule Castile do
       _, acc -> acc
     end)
   end
+
+  # %% returns [#port{}]
+  # %% -record(port, {service, port, binding, address}).
+
+  #  TODO: use records everywhere
+  def get_ports(parsed_wsdl) do
+    services = get_toplevel_elements(parsed_wsdl, :"wsdl:tService")
+    Enum.reduce(services, [], fn service, acc ->
+      {:"wsdl:tService", _attrs, service_name, _docs, _choice, ports} = service
+      Enum.reduce(ports, acc, fn
+        {:"wsdl:tPort", _attrs, name, binding, _docs, choice}, acc ->
+          IO.puts "port!"
+          Enum.reduce(choice, acc, fn
+            {:"soap:tAddress", _attrs, _required, location}, acc ->
+              [%{service: service_name, port: name, binding: binding, address: location} | acc]
+            _, acc -> acc # non-soap bindings are ignored
+          end)
+          _, acc -> acc
+      end)
+    end)
+  end
+
 end
