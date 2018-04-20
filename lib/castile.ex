@@ -7,6 +7,10 @@ defmodule Castile do
 
   @priv_dir Application.app_dir(:castile, "priv")
 
+  defmodule Model do
+    defstruct [:operations, :model]
+  end
+
   def init_model(wsdl_file, prefix \\ 'p') do
     wsdl = Path.join([@priv_dir, "wsdl.xsd"])
     {:ok, wsdl_model} = Erlsom.compile_xsd_file(
@@ -23,20 +27,21 @@ defmodule Castile do
     # parse wsdl
     {model, operations} = parse_wsdls([wsdl_file], prefix, wsdl_model, options, {nil, []})
 
-    #%% TODO: add files as required
-    #%% now compile envelope.xsd, and add Model
-    #{ok, EnvelopeModel} = erlsom:compile_xsd_file(filename:join([Path, "envelope.xsd"]),
-    #                      [{prefix, "soap"}]),
-    #SoapModel = erlsom:add_model(EnvelopeModel, Model),
-    #SoapModel2 = addModels(AddFiles, SoapModel),
-    ##wsdl{operations = Operations, model = SoapModel2}.
+    # TODO: add files as required
+    # now compile envelope.xsd, and add Model
+    {:ok, envelope_model} = Erlsom.compile_xsd_file(Path.join([@priv_dir, "envelope.xsd"]), prefix: 'soap')
+    soap_model = Erlsom.add_model(envelope_model, model)
+    # TODO: detergent enables you to pass some sort of AddFiles that will stitch together the soap model
+    # SoapModel2 = addModels(AddFiles, SoapModel),
+
+    %Model{operations: operations, model: soap_model}
   end
 
   def parse_wsdls([], _prefix, _wsdl_model, _opts, acc), do: acc
 
   def parse_wsdls([path | rest], prefix, wsdl_model, opts, {acc_model, acc_operations}) do
     {:ok, wsdl_file} = get_file(String.trim(path))
-    {:ok, parsed, _} = :erlsom.scan(wsdl_file, wsdl_model)
+    {:ok, parsed, _} = Erlsom.scan(wsdl_file, wsdl_model)
     # get xsd elements from wsdl to compile
     xsds = extract_wsdl_xsds(parsed)
     # Now we need to build a list: [{Namespace, Prefix, Xsd}, ...] for all the Xsds in the WSDL.
@@ -82,7 +87,7 @@ defmodule Castile do
 
   def get_file(uri) do
     case URI.parse(uri) do
-      %{scheme: scheme} when scheme in [:http, :https] ->
+      %{scheme: scheme} when scheme in ["http", "https"] ->
         raise "Not implemented"
         # get_remote_file()
       _ ->
