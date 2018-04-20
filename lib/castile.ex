@@ -135,20 +135,20 @@ defmodule Castile do
   end
 
 
-# %% returns [#operation{}]
+  # %% returns [#operation{}]
   def get_operations(parsed_wsdl, ports) do
     bindings = get_toplevel_elements(parsed_wsdl, :"wsdl:tBinding")
     Enum.reduce(bindings, [], fn {:"wsdl:tBinding", _attrs, binding, _type, _docs, _choice, ops}, acc ->
-      IO.inspect ops
       Enum.reduce(ops, acc, fn {:"wsdl:tBindingOperation", _attrs, name, _docs, choice, _input, _output, _fault}, acc ->
-        IO.inspect choice
         case choice do
           [{:"soap:tOperation", _attrs, _required, action, _style}] ->
             # lookup Binding in Ports, and create a combined result
-            found = Enum.filter(ports, fn port -> :erlsom_lib.localName(port[:binding]) == binding end)
-            operations = Enum.map(found, fn port ->
-              %{service: port.service, port: port.port, operation: name, binding: binding, address: port.address, action: action}
-            end)
+            operations =
+              ports
+              |> Enum.filter(fn port -> :erlsom_lib.localName(port[:binding]) == binding end)
+              |> Enum.map(fn port ->
+                %{service: port.service, port: port.port, operation: name, binding: binding, address: port.address, action: action}
+              end)
             operations ++ acc
           _ ->  acc
         end
