@@ -7,7 +7,7 @@ defmodule Castile do
 
   @priv_dir Application.app_dir(:castile, "priv")
 
-  def init_model(wsdl_file, prefix \\ "p") do
+  def init_model(wsdl_file, prefix \\ 'p') do
     wsdl = Path.join([@priv_dir, "wsdl.xsd"])
     {:ok, wsdl_model} = Erlsom.compile_xsd_file(
       Path.join([@priv_dir, "soap.xsd"]),
@@ -22,7 +22,7 @@ defmodule Castile do
 
     # parse wsdl
     #{model, operations} = parse_wsdls([wsdl_file], prefix, wsdl_model, options)
-    res = parse_wsdls([wsdl_file], prefix, wsdl_model, options)
+    res = parse_wsdls([wsdl_file], prefix, wsdl_model, options, {nil, []})
 
     #%% parse Wsdl
     #{Model, Operations} = parseWsdls([WsdlFile], Prefix, WsdlModel2, Options, {undefined, []}),
@@ -35,33 +35,50 @@ defmodule Castile do
     ##wsdl{operations = Operations, model = SoapModel2}.
   end
 
-
-    # parseWsdls([WsdlFile | Tail], Prefix, WsdlModel, Options, {AccModel, AccOperations}) ->
-  def parse_wsdls([path | rest], prefix, wsdl_model, options) do
-
+  # parseWsdls([WsdlFile | Tail], Prefix, WsdlModel, Options, {AccModel, AccOperations}) ->
+  def parse_wsdls([path | rest], prefix, wsdl_model, opts, {acc_model, acc_operations}) do
     {:ok, wsdl_file} = get_file(String.trim(path))
     {:ok, parsed, _} = :erlsom.scan(wsdl_file, wsdl_model)
     # get xsd elements from wsdl to compile
     xsds = extract_wsdl_xsds(parsed)
-    #   %% Now we need to build a list: [{Namespace, Xsd, Prefix}, ...] for all the Xsds in the WSDL.
-    #   %% This list is used when a schema inlcudes one of the other schemas. The AXIS java2wsdl
-    #   %% generates wsdls that depend on this feature.
-    #   ImportList = makeImportList(Xsds, []),
-    #   %% TODO: pass the right options here
-    #   Model2 = addSchemas(Xsds, AccModel, Prefix, Options, ImportList),
-    #   Ports = getPorts(ParsedWsdl),
-    #   Operations = getOperations(ParsedWsdl, Ports),
-    #   Imports = getImports(ParsedWsdl),
-    #   Acc2 = {Model2, Operations ++ AccOperations},
-    #   %% process imports (recursively, so that imports in the imported files are
-    #   %% processed as well).
-    #   %% For the moment, the namespace is ignored on operations etc.
-    #   %% this makes it a bit easier to deal with imported wsdl's.
-    #   Acc3 = parseWsdls(Imports, Prefix, WsdlModel, Options, Acc2),
-    #   parseWsdls(Tail, Prefix, WsdlModel, Options, Acc3).
+    # Now we need to build a list: [{Namespace, Prefix, Xsd}, ...] for all the Xsds in the WSDL.
+    # This list is used when a schema inlcudes one of the other schemas. The AXIS java2wsdl
+    # generates wsdls that depend on this feature.
+    imports = Enum.map(xsds, fn xsd ->
+      {:erlsom_lib.getTargetNamespaceFromXsd(xsd), nil, xsd}
+    end)
+
+    # TODO: pass the right options here
+    model = add_schemas(xsds, prefix, opts, imports, acc_model)
+
+    # Ports = getPorts(ParsedWsdl),
+    # Operations = getOperations(ParsedWsdl, Ports),
+    # Imports = getImports(ParsedWsdl),
+    # Acc2 = {Model2, Operations ++ AccOperations},
+    # %% process imports (recursively, so that imports in the imported files are
+    # %% processed as well).
+    # %% For the moment, the namespace is ignored on operations etc.
+    # %% this makes it a bit easier to deal with imported wsdl's.
+    # Acc3 = parseWsdls(Imports, Prefix, WsdlModel, Options, Acc2),
+    # parseWsdls(Tail, Prefix, WsdlModel, Options, Acc3).
   end
 
-  def parse_wsdl() do
+  # compile each of the schemas, and add it to the model.
+  # Returns Model
+  # (TODO: using the same prefix for all XSDS makes no sense, generate one)
+  def add_schemas(xsds, prefix, opts, imports, acc_model \\ nil) do
+    Enum.reduce(xsds, acc_model, fn xsd, acc ->
+      case xsd do
+        nil -> acc
+        _ ->
+          {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, [{:prefix, prefix}, {:include_files, imports} | opts])
+
+          case acc_model do
+            nil -> model
+            _ -> :erlsom.add_model(acc_model, model)
+          end
+      end
+    end)
   end
 
   def get_file(uri) do
@@ -77,9 +94,6 @@ defmodule Castile do
   def get_local_file(uri) do
     File.read(uri)
   end
-
-  require Record
-  Record.defrecord :'wsdl:ttypes', [:anyattribs, :documentation, :choice]
 
   def extract_wsdl_xsds(wsdl) do
     case get_toplevel_elements(wsdl, :"wsdl:tTypes") do
