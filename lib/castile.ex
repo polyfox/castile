@@ -7,6 +7,15 @@ defmodule Castile do
 
   @priv_dir Application.app_dir(:castile, "priv")
 
+  import Record
+  defrecord :wsdl_service,           :"wsdl:tService",          [:attrs, :name,      :docs,     :choice, :ports]
+  defrecord :wsdl_port,              :"wsdl:tPort",             [:attrs, :name,      :binding,  :docs,   :choice]
+  defrecord :wsdl_binding,           :"wsdl:tBinding",          [:attrs, :binding,   :type,     :docs,   :choice, :ops]
+  defrecord :wsdl_binding_operation, :"wsdl:tBindingOperation", [:attrs, :name,      :docs,     :choice, :input,  :output, :fault]
+  defrecord :wsdl_import,            :"wsdl:tImport",           [:attrs, :namespace, :location, :docs]
+  defrecord :soap_operation,         :"soap:tOperation",        [:attrs, :required,  :action,   :style]
+  defrecord :soap_address,           :"soap:tAddress",          [:attrs, :required,  :location]
+
   defmodule Model do
     defstruct [:operations, :model]
   end
@@ -125,11 +134,11 @@ defmodule Castile do
   def get_ports(parsed_wsdl) do
     services = get_toplevel_elements(parsed_wsdl, :"wsdl:tService")
     Enum.reduce(services, [], fn service, acc ->
-      {:"wsdl:tService", _attrs, service_name, _docs, _choice, ports} = service
+      wsdl_service(name: service_name, ports: ports) = service
       Enum.reduce(ports, acc, fn
-        {:"wsdl:tPort", _attrs, name, binding, _docs, choice}, acc ->
+        wsdl_port(name: name, binding: binding, choice: choice), acc ->
           Enum.reduce(choice, acc, fn
-            {:"soap:tAddress", _attrs, _required, location}, acc ->
+            soap_address(location: location), acc ->
               [%{service: service_name, port: name, binding: binding, address: location} | acc]
             _, acc -> acc # non-soap bindings are ignored
           end)
@@ -138,14 +147,13 @@ defmodule Castile do
     end)
   end
 
-
   # %% returns [#operation{}]
   def get_operations(parsed_wsdl, ports) do
     bindings = get_toplevel_elements(parsed_wsdl, :"wsdl:tBinding")
-    Enum.reduce(bindings, [], fn {:"wsdl:tBinding", _attrs, binding, _type, _docs, _choice, ops}, acc ->
-      Enum.reduce(ops, acc, fn {:"wsdl:tBindingOperation", _attrs, name, _docs, choice, _input, _output, _fault}, acc ->
+    Enum.reduce(bindings, [], fn (wsdl_binding(binding: binding, ops: ops), acc) ->
+      Enum.reduce(ops, acc, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
         case choice do
-          [{:"soap:tOperation", _attrs, _required, action, _style}] ->
+          [soap_operation(action: action)] ->
             # lookup Binding in Ports, and create a combined result
             operations =
               ports
@@ -163,6 +171,6 @@ defmodule Castile do
   def get_imports(parsed_wsdl) do
     parsed_wsdl
     |> get_toplevel_elements(:"wsdl:tImport")
-    |> Enum.map(fn {:"wsdl:tImport", _attrs, _namespace, location, _docs} -> to_string(location) end)
+    |> Enum.map(fn wsdl_import(location: location) -> to_string(location) end)
   end
 end
