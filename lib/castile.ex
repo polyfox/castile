@@ -185,13 +185,14 @@ defmodule Castile do
 
   defrecord :erlsom_model, :model, [:types, :namespaces, :target_namespace, :type_hierarchy, :any_attribs, :value_fun]
 
+  @spec convert(operation :: atom, input :: map, Model.t) :: {:ok, binary} | {:error, term}
   def convert(operation, map, %Model{model: erlsom_model(types: types), operations: ops} = model) do
     tup = cast_type(operation, map, types)
     Erlsom.write(tup, model.model, output: :binary)
   end
 
-  #@spec convert(map) :: tuple
-  def cast_type(name, map, types) do
+  @spec cast_type(name :: atom, input :: map, types :: term) :: tuple
+  def cast_type(name, input, types) do
     spec = List.keyfind(types, name, type(:name))
     IO.inspect spec
 
@@ -199,7 +200,7 @@ defmodule Castile do
     vals =
       spec
       |> type(:els)
-      |> Enum.map(&convert_el(&1, map, types))
+      |> Enum.map(&convert_el(&1, input, types))
     List.to_tuple([name, [] | vals])
   end
 
@@ -207,15 +208,15 @@ defmodule Castile do
   def convert_el(el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: _nr), map, types) do
     case Map.get(map, tag) do
       nil ->
-        if nillable == true do
-          nil
-        else
-          raise "Non-nillable type #{tag} found nil"
+        cond do
+          min == 0          -> :undefined
+          nillable == true  -> nil
+          true              -> raise "Non-nillable type #{tag} found nil"
         end
       val ->
         case t do
           {:"#PCDATA", :char} ->
-            val
+            val # erlsom will happily accept binaries
           t when is_atom(t) ->
             cast_type(t, val, types)
         end
