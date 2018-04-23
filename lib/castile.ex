@@ -16,6 +16,9 @@ defmodule Castile do
   defrecord :wsdl_part,        :"wsdl:tPart",             [:attrs, :name,      :element, :type,   :docs]
   defrecord :wsdl_message,     :"wsdl:tMessage",          [:attrs, :name,      :docs,    :choice, :part]
   defrecord :wsdl_operation,   :"wsdl:tOperation",        [:attrs, :name,      :parameterOrder,     :docs, :any,  :choice]
+  defrecord :wsdl_request_response, :"wsdl:request-response-or-one-way-operation", [:attrs, :input, :output, :fault]
+  defrecord :wsdl_param, :"wsdl:tParam", [:attrs, :name, :message, :docs]
+
 
   defrecord :soap_operation,   :"soap:tOperation",        [:attrs, :required,  :action,   :style]
   defrecord :soap_address,     :"soap:tAddress",          [:attrs, :required,  :location]
@@ -79,7 +82,7 @@ defmodule Castile do
     model = add_schemas(xsds, opts, import_list, acc_model)
 
     ports = get_ports(parsed)
-    operations = get_operations(parsed, ports)
+    operations = get_operations(parsed, ports, model)
     imports = get_imports(parsed)
 
     acc = {model, Map.merge(acc_operations, operations, fn _,_,_ -> raise "Unexpected duplicate" end)}
@@ -164,7 +167,7 @@ defmodule Castile do
     end)
   end
 
-  def get_operations(parsed_wsdl, ports) do
+  def get_operations(parsed_wsdl, ports, model) do
     bindings = get_toplevel_elements(parsed_wsdl, :"wsdl:tBinding")
     Enum.reduce(bindings, %{}, fn (wsdl_binding(binding: binding, ops: ops, type: pt), acc) ->
       port_type = :erlsom_lib.localName(pt)
@@ -180,9 +183,19 @@ defmodule Castile do
             |> Enum.filter(fn port -> :erlsom_lib.localName(port[:binding]) == binding end)
             |> Enum.reduce(acc, fn port, acc ->
               operation = List.keyfind(port_type, name, 2)
-              IO.inspect operation
-              wsdl_operation(operation)
-              Map.put_new(acc, to_string(name), %{service: port.service, port: port.port, binding: binding, address: port.address, action: action})
+              params = wsdl_operation(operation, :choice)
+              wsdl_request_response(input: input, output: output, fault: fault) = params
+
+              Map.put_new(acc, to_string(name), %{
+                service: port.service,
+                port: port.port,
+                binding: binding,
+                address: port.address,
+                action: action,
+                input: extract_type(parsed_wsdl, model, input),
+                output: extract_type(parsed_wsdl, model, output),
+                fault: extract_type(parsed_wsdl, model, fault)
+              })
             end)
           _ ->  acc
         end
@@ -202,6 +215,33 @@ defmodule Castile do
     |> List.keyfind(type, 2)
   end
 
+  defp extract_type(parsed_wsdl, model, wsdl_param(message: message)) do
+    type = :erlsom_lib.localName(message)
+    parts = 
+      parsed_wsdl
+      |> get_toplevel_elements(:"wsdl:tMessage")
+      |> List.keyfind(type, 2)
+      |> wsdl_message(:part)
+    extract_type(parsed_wsdl, model, parts)
+  end
+  defp extract_type(parsed_wsdl, model, [wsdl_part(element: :undefined, type: type, name: name)]) do
+    raise "Unhandled"
+  end
+  defp extract_type(parsed_wsdl, model, [wsdl_part(element: el, name: name)]) do
+    local = :erlsom_lib.localName(el)
+    uri = :erlsom_lib.getUriFromQname(el)
+    prefix = :erlsom_lib.getPrefixFromModel(model, uri)
+    case prefix do
+      :undefined -> local
+      nil -> local
+      "" -> local
+      _ -> prefix <> ":" <> local
+    end
+    |> List.to_atom()
+  end
+  defp extract_type(_, _, nil), do: nil
+  defp extract_type(_, _, :undefined), do: nil
+
   # --- Introspection --------
 
   defrecord :model, :model, [:types, :namespaces, :target_namespace, :type_hierarchy, :any_attribs, :value_fun]
@@ -212,7 +252,7 @@ defmodule Castile do
 
   @spec convert(Model.t, operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
   def convert(%Model{model: model(types: types)} = model, operation, params) do
-    operation
+    get_in(model.operations, [to_string(operation), :input])
     |> cast_type(params, types)
     |> List.wrap()
     |> wrap_envelope()
@@ -254,8 +294,9 @@ defmodule Castile do
         end
       val ->
         case t do
-          {:"#PCDATA", :char} ->
-            val # erlsom will happily accept binaries
+          # val # erlsom will happily accept binaries
+          {:"#PCDATA", _} ->
+            val
           t when is_atom(t) ->
             cast_type(t, val, types)
         end
