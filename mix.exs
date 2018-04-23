@@ -30,7 +30,9 @@ defmodule Castile.MixProject do
   defp deps do
     [
       {:xml_builder, "~> 2.0"},
-      {:erlsom, "~> 1.4"},
+      # hex version is old and doesn't have write/3 or write related perf
+      # improvements
+      {:erlsom, git: "https://github.com/willemdj/erlsom"},
       {:ex_doc, ">= 0.0.0", only: :dev}
     ]
   end

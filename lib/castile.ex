@@ -8,6 +8,7 @@ defmodule Castile do
   @priv_dir Application.app_dir(:castile, "priv")
 
   import Record
+  defrecord :wsdl_definitions,       :"wsdl:tDefinitions",      [:attrs, :namespace, :name,     :docs,   :any,    :choice]
   defrecord :wsdl_service,           :"wsdl:tService",          [:attrs, :name,      :docs,     :choice, :ports]
   defrecord :wsdl_port,              :"wsdl:tPort",             [:attrs, :name,      :binding,  :docs,   :choice]
   defrecord :wsdl_binding,           :"wsdl:tBinding",          [:attrs, :binding,   :type,     :docs,   :choice, :ops]
@@ -18,8 +19,10 @@ defmodule Castile do
 
   defmodule Model do
     defstruct [:operations, :model]
+    @type t :: %__MODULE__{operations: [map], model: term}
   end
 
+  @spec init_model(String.t, prefix :: char) :: Model.t
   def init_model(wsdl_file, prefix \\ 'p') do
     wsdl = Path.join([@priv_dir, "wsdl.xsd"])
     {:ok, wsdl_model} = Erlsom.compile_xsd_file(
@@ -115,7 +118,7 @@ defmodule Castile do
     end
   end
 
-  def get_toplevel_elements({:"wsdl:tDefinitions", _attrs, _namespace, _name, _docs, _any, choice}, type) do
+  def get_toplevel_elements(wsdl_definitions(choice: choice), type) do
     # TODO: reduce using function sigs instead
     Enum.reduce(choice, [], fn
       {:"wsdl:anyTopLevelOptionalElement", _attrs, tuple}, acc ->
@@ -147,7 +150,6 @@ defmodule Castile do
     end)
   end
 
-  # %% returns [#operation{}]
   def get_operations(parsed_wsdl, ports) do
     bindings = get_toplevel_elements(parsed_wsdl, :"wsdl:tBinding")
     Enum.reduce(bindings, [], fn (wsdl_binding(binding: binding, ops: ops), acc) ->
@@ -173,4 +175,51 @@ defmodule Castile do
     |> get_toplevel_elements(:"wsdl:tImport")
     |> Enum.map(fn wsdl_import(location: location) -> to_string(location) end)
   end
+
+  # --- Introspection --------
+
+  defrecord :type, [:name, :tp, :els, :attrs, :anyAttr, :nillable, :nr, :nm, :mx, :mxd, :typeName]
+  defrecord :el,   [:alts, :mn, :mx, :nillable, :nr]
+  defrecord :alt,  [:tag, :type, :nxt, :mn, :mx, :rl, :anyInfo]
+  defrecord :attr, :att, [:name, :nr, :opt, :tp]
+
+  defrecord :erlsom_model, :model, [:types, :namespaces, :target_namespace, :type_hierarchy, :any_attribs, :value_fun]
+
+  def convert(operation, map, %Model{model: erlsom_model(types: types), operations: ops} = model) do
+    tup = cast_type(operation, map, types)
+    Erlsom.write(tup, model.model, output: :binary)
+  end
+
+  #@spec convert(map) :: tuple
+  def cast_type(name, map, types) do
+    spec = List.keyfind(types, name, type(:name))
+    IO.inspect spec
+
+    # TODO: check type(spec, :tp) and handle other things than :sequence
+    vals =
+      spec
+      |> type(:els)
+      |> Enum.map(&convert_el(&1, map, types))
+    List.to_tuple([name, [] | vals])
+  end
+
+  # TODO: will need to pass through parent type possibly
+  def convert_el(el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: _nr), map, types) do
+    case Map.get(map, tag) do
+      nil ->
+        if nillable == true do
+          nil
+        else
+          raise "Non-nillable type #{tag} found nil"
+        end
+      val ->
+        case t do
+          {:"#PCDATA", :char} ->
+            val
+          t when is_atom(t) ->
+            cast_type(t, val, types)
+        end
+    end
+  end
+
 end
