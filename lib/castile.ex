@@ -37,7 +37,7 @@ defmodule Castile do
     options = [dir_list: include_dir]
 
     # parse wsdl
-    {model, operations} = parse_wsdls([wsdl_file], prefix, wsdl_model, options, {nil, []})
+    {model, operations} = parse_wsdls([wsdl_file], prefix, wsdl_model, options, {nil, %{}})
 
     # TODO: add files as required
     # now compile envelope.xsd, and add Model
@@ -70,7 +70,7 @@ defmodule Castile do
     operations = get_operations(parsed, ports)
     imports = get_imports(parsed)
 
-    acc = {model, operations ++ acc_operations}
+    acc = {model, Map.merge(acc_operations, operations, fn _,_,_ -> raise "Unexpected duplicate" end)}
     # process imports (recursively, so that imports in the imported files are
     # processed as well).
     # For the moment, the namespace is ignored on operations etc.
@@ -152,18 +152,16 @@ defmodule Castile do
 
   def get_operations(parsed_wsdl, ports) do
     bindings = get_toplevel_elements(parsed_wsdl, :"wsdl:tBinding")
-    Enum.reduce(bindings, [], fn (wsdl_binding(binding: binding, ops: ops), acc) ->
+    Enum.reduce(bindings, %{}, fn (wsdl_binding(binding: binding, ops: ops), acc) ->
       Enum.reduce(ops, acc, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
         case choice do
           [soap_operation(action: action)] ->
             # lookup Binding in Ports, and create a combined result
-            operations =
-              ports
-              |> Enum.filter(fn port -> :erlsom_lib.localName(port[:binding]) == binding end)
-              |> Enum.map(fn port ->
-                %{service: port.service, port: port.port, operation: name, binding: binding, address: port.address, action: action}
-              end)
-            operations ++ acc
+            ports
+            |> Enum.filter(fn port -> :erlsom_lib.localName(port[:binding]) == binding end)
+            |> Enum.reduce(acc, fn port, acc ->
+              Map.put_new(acc, to_string(name), %{service: port.service, port: port.port, binding: binding, address: port.address, action: action})
+            end)
           _ ->  acc
         end
       end)
