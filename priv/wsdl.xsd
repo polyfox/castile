@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?> 
 <!-- 
- 
+
 Copyright 2001 - 2005, International Business Machines Corporation and Microsoft Corporation
 All Rights Reserved
 
@@ -30,10 +30,10 @@ No other rights are granted by implication, estoppel or otherwise.
 
 --> 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
-           targetNamespace="http://schemas.xmlsoap.org/wsdl/"
-           elementFormDefault="qualified" >
-   
+  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+  targetNamespace="http://schemas.xmlsoap.org/wsdl/"
+  elementFormDefault="qualified" >
+
   <xs:complexType mixed="true" name="tDocumentation" >
     <xs:sequence>
       <xs:any minOccurs="0" maxOccurs="unbounded" processContents="lax" />
@@ -43,20 +43,20 @@ No other rights are granted by implication, estoppel or otherwise.
   <xs:complexType name="tDocumented" >
     <xs:annotation>
       <xs:documentation>
-      This type is extended by  component types to allow them to be documented
+        This type is extended by  component types to allow them to be documented
       </xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="documentation" type="wsdl:tDocumentation" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
-	 
+
   <xs:complexType name="tExtensibleAttributesDocumented" abstract="true" >
     <xs:complexContent>
       <xs:extension base="wsdl:tDocumented" >
         <xs:annotation>
           <xs:documentation>
-          This type is extended by component types to allow attributes from other namespaces to be added.
+            This type is extended by component types to allow attributes from other namespaces to be added.
           </xs:documentation>
         </xs:annotation>
         <xs:anyAttribute namespace="##other" processContents="lax" />    
@@ -69,7 +69,7 @@ No other rights are granted by implication, estoppel or otherwise.
       <xs:extension base="wsdl:tDocumented" >
         <xs:annotation>
           <xs:documentation>
-          This type is extended by component types to allow elements from other namespaces to be added.
+            This type is extended by component types to allow elements from other namespaces to be added.
           </xs:documentation>
         </xs:annotation>
         <xs:sequence>
@@ -105,7 +105,7 @@ No other rights are granted by implication, estoppel or otherwise.
   <xs:group name="anyTopLevelOptionalElement" >
     <xs:annotation>
       <xs:documentation>
-      Any top level optional element allowed to appear more then once - any child of definitions element except wsdl:types. Any extensibility element is allowed in any place.
+        Any top level optional element allowed to appear more then once - any child of definitions element except wsdl:types. Any extensibility element is allowed in any place.
       </xs:documentation>
     </xs:annotation>
     <xs:choice>
@@ -124,7 +124,7 @@ No other rights are granted by implication, estoppel or otherwise.
           <xs:selector xpath="wsdl:port" />
           <xs:field xpath="@name" />
         </xs:unique>
-	  </xs:element>
+      </xs:element>
     </xs:choice>
   </xs:group>
 
@@ -139,7 +139,7 @@ No other rights are granted by implication, estoppel or otherwise.
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-   
+
   <xs:complexType name="tImport" >
     <xs:complexContent>
       <xs:extension base="wsdl:tExtensibleAttributesDocumented" >
@@ -148,13 +148,13 @@ No other rights are granted by implication, estoppel or otherwise.
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-   
+
   <xs:complexType name="tTypes" >
     <xs:complexContent>   
       <xs:extension base="wsdl:tExtensibleDocumented" />
     </xs:complexContent>   
   </xs:complexType>
-     
+
   <xs:complexType name="tMessage" >
     <xs:complexContent>   
       <xs:extension base="wsdl:tExtensibleDocumented" >
@@ -186,11 +186,11 @@ No other rights are granted by implication, estoppel or otherwise.
       </xs:extension>
     </xs:complexContent>   
   </xs:complexType>
-   
+
   <xs:complexType name="tOperation" >
     <xs:complexContent>   
       <xs:extension base="wsdl:tExtensibleDocumented" >
-	    <xs:sequence>
+        <xs:sequence>
           <xs:choice>
             <xs:group ref="wsdl:request-response-or-one-way-operation" />
             <xs:group ref="wsdl:solicit-response-or-notification-operation" />
@@ -235,7 +235,7 @@ No other rights are granted by implication, estoppel or otherwise.
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-     
+
   <xs:complexType name="tBinding" >
     <xs:complexContent>
       <xs:extension base="wsdl:tExtensibleDocumented" >
@@ -247,7 +247,7 @@ No other rights are granted by implication, estoppel or otherwise.
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-    
+
   <xs:complexType name="tBindingOperationMessage" >
     <xs:complexContent>
       <xs:extension base="wsdl:tExtensibleDocumented" >
@@ -255,7 +255,7 @@ No other rights are granted by implication, estoppel or otherwise.
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-  
+
   <xs:complexType name="tBindingOperationFault" >
     <xs:complexContent>
       <xs:extension base="wsdl:tExtensibleDocumented" >
@@ -276,7 +276,7 @@ No other rights are granted by implication, estoppel or otherwise.
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-     
+
   <xs:complexType name="tService" >
     <xs:complexContent>
       <xs:extension base="wsdl:tExtensibleDocumented" >
@@ -287,7 +287,7 @@ No other rights are granted by implication, estoppel or otherwise.
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-     
+
   <xs:complexType name="tPort" >
     <xs:complexContent>
       <xs:extension base="wsdl:tExtensibleDocumented" >
@@ -303,8 +303,8 @@ No other rights are granted by implication, estoppel or otherwise.
     <xs:attribute ref="wsdl:required" use="optional" />
   </xs:complexType>
 
-    <xs:attributeGroup name="ItemDelivery">
-      <xs:attribute name="partNum"  type="xs:string" use="required"/>
-      <xs:attribute ref="wsdl:required"/>
-    </xs:attributeGroup>
+  <xs:attributeGroup name="ItemDelivery">
+    <xs:attribute name="partNum"  type="xs:string" use="required"/>
+    <xs:attribute ref="wsdl:required"/>
+  </xs:attributeGroup>
 </xs:schema>

@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<definitions name="contacts"
+             targetNamespace="http://example.com/contacts.wsdl"
+             xmlns:tns="http://example.com/contacts.wsdl"
+             xmlns:types="http://example.com/contacts.xsd"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+  <types>
+    <xsd:schema targetNamespace="http://example.com/contacts.xsd"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:element name="contact">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:integer" minOccurs="0"/>
+            <xsd:element name="first_name" type="xsd:string"/>
+            <xsd:element name="last_name" type="xsd:string"/>
+            <xsd:element name="projects" type="xsd:string" 
+                         minOccurs="0" maxOccurs="unbounded"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="id">
+         <xsd:complexType>
+           <xsd:sequence>
+             <xsd:element name="id" type="xsd:integer"/>
+           </xsd:sequence>
+         </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="LocaleOptions">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="language"  type="xsd:string" minOccurs="0"/>
+            <xsd:element name="localizeErrors" type="xsd:boolean" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>            
+      <xsd:element name="DebuggingHeader">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="debugLevel" type="xsd:integer"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:schema>
+  </types>
+
+  <message name="store">
+    <part name="body" element="types:contact"/>
+  </message>
+
+  <message name="store_response">
+    <part name="body" element="types:id"/>
+  </message>
+
+  <message name="retrieve">
+    <part name="body" element="types:id"/>
+  </message>
+
+  <message name="retrieve_response">
+    <part name="body" element="types:contact"/>
+  </message>
+
+  <message name="Header">
+    <part element="types:DebuggingHeader"              name="DebuggingHeader"/>
+    <part element="types:LocaleOptions"                name="LocaleOptions"/>
+  </message>
+
+  <portType name="contacts_port_type">
+    <operation name="store">
+      <input message="tns:store"/>
+      <output message="tns:store_response"/>
+    </operation>
+    <operation name="retrieve">
+      <input message="tns:retrieve"/>
+      <output message="tns:retrieve_response"/>
+    </operation>
+  </portType>
+
+  <binding name="contacts_binding" type="tns:contacts_port_type">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="store">
+      <soap:operation soapAction="store"/>
+      <input>
+        <soap:header use="literal" message="tns:Header" part="LocaleOptions"/>
+        <soap:header use="literal" message="tns:Header" part="DebuggingHeader"/>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    <operation name="retrieve">
+      <soap:operation soapAction="retrieve"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+  </binding>
+
+  <service name="contacts_service">
+    <port name="contacts_port" binding="tns:contacts_binding">
+      <soap:address location="http://localhost:8080"/>
+    </port>
+  </service>
+
+</definitions>

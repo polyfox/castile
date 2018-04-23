@@ -6,15 +6,19 @@ defmodule Castile do
   @priv_dir Application.app_dir(:castile, "priv")
 
   import Record
-  defrecord :wsdl_definitions,       :"wsdl:tDefinitions",      [:attrs, :namespace, :name,     :docs,   :any,    :choice]
-  defrecord :wsdl_service,           :"wsdl:tService",          [:attrs, :name,      :docs,     :choice, :ports]
-  defrecord :wsdl_port,              :"wsdl:tPort",             [:attrs, :name,      :binding,  :docs,   :choice]
-  defrecord :wsdl_binding,           :"wsdl:tBinding",          [:attrs, :binding,   :type,     :docs,   :choice, :ops]
-  defrecord :wsdl_binding_operation, :"wsdl:tBindingOperation", [:attrs, :name,      :docs,     :choice, :input,  :output, :fault]
-  defrecord :wsdl_import,            :"wsdl:tImport",           [:attrs, :namespace, :location, :docs]
-  defrecord :soap_operation,         :"soap:tOperation",        [:attrs, :required,  :action,   :style]
-  defrecord :soap_address,           :"soap:tAddress",          [:attrs, :required,  :location]
+  defrecord :wsdl_definitions, :"wsdl:tDefinitions",      [:attrs, :namespace, :name,     :docs,   :any,    :choice]
+  defrecord :wsdl_service,     :"wsdl:tService",          [:attrs, :name,      :docs,     :choice, :ports]
+  defrecord :wsdl_port,        :"wsdl:tPort",             [:attrs, :name,      :binding,  :docs,   :choice]
+  defrecord :wsdl_binding,     :"wsdl:tBinding",          [:attrs, :binding,   :type,     :docs,   :choice, :ops]
+  defrecord :wsdl_binding_operation,   :"wsdl:tBindingOperation", [:attrs, :name,      :docs,     :choice, :input,  :output, :fault]
+  defrecord :wsdl_import,      :"wsdl:tImport",           [:attrs, :namespace, :location, :docs]
+  defrecord :wsdl_port_type,   :"wsdl:tPortType",         [:attrs, :name, :docs, :operation]
+  defrecord :wsdl_part,        :"wsdl:tPart",             [:attrs, :name,      :element, :type,   :docs]
+  defrecord :wsdl_message,     :"wsdl:tMessage",          [:attrs, :name,      :docs,    :choice, :part]
+  defrecord :wsdl_operation,   :"wsdl:tOperation",        [:attrs, :name,      :parameterOrder,     :docs, :any,  :choice]
 
+  defrecord :soap_operation,   :"soap:tOperation",        [:attrs, :required,  :action,   :style]
+  defrecord :soap_address,     :"soap:tAddress",          [:attrs, :required,  :location]
   # elixir uses defrecord to interface with erlang but uses nil instead of the
   # erlang default: undefined...?!
   defrecord :soap_fault,    :"soap:Fault",    [attrs: :undefined, faultcode: :undefined, faultstring: :undefined, faultactor: :undefined, detail: :undefined]
@@ -27,6 +31,7 @@ defmodule Castile do
     @type t :: %__MODULE__{operations: map, model: term}
   end
 
+  # TODO: take namespaces as binary
   @spec init_model(String.t, namespaces :: list) :: Model.t
   def init_model(wsdl_file, namespaces \\ []) do
     wsdl = Path.join([@priv_dir, "wsdl.xsd"])
@@ -138,10 +143,11 @@ defmodule Castile do
     end)
   end
 
+  # TODO: soap1.2
+
   # %% returns [#port{}]
   # %% -record(port, {service, port, binding, address}).
 
-  #  TODO: use records everywhere
   def get_ports(parsed_wsdl) do
     services = get_toplevel_elements(parsed_wsdl, :"wsdl:tService")
     Enum.reduce(services, [], fn service, acc ->
@@ -160,14 +166,22 @@ defmodule Castile do
 
   def get_operations(parsed_wsdl, ports) do
     bindings = get_toplevel_elements(parsed_wsdl, :"wsdl:tBinding")
-    Enum.reduce(bindings, %{}, fn (wsdl_binding(binding: binding, ops: ops), acc) ->
+    Enum.reduce(bindings, %{}, fn (wsdl_binding(binding: binding, ops: ops, type: pt), acc) ->
+      port_type = :erlsom_lib.localName(pt)
+      port_type = wsdl_port_type(get_port_type(parsed_wsdl, port_type), :operation)
+
       Enum.reduce(ops, acc, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
         case choice do
           [soap_operation(action: action)] ->
             # lookup Binding in Ports, and create a combined result
+
+            # TODO: parse input/output
             ports
             |> Enum.filter(fn port -> :erlsom_lib.localName(port[:binding]) == binding end)
             |> Enum.reduce(acc, fn port, acc ->
+              operation = List.keyfind(port_type, name, 2)
+              IO.inspect operation
+              wsdl_operation(operation)
               Map.put_new(acc, to_string(name), %{service: port.service, port: port.port, binding: binding, address: port.address, action: action})
             end)
           _ ->  acc
@@ -180,6 +194,12 @@ defmodule Castile do
     parsed_wsdl
     |> get_toplevel_elements(:"wsdl:tImport")
     |> Enum.map(fn wsdl_import(location: location) -> to_string(location) end)
+  end
+
+  def get_port_type(parsed_wsdl, type) do
+    parsed_wsdl
+    |> get_toplevel_elements(:"wsdl:tPortType")
+    |> List.keyfind(type, 2)
   end
 
   # --- Introspection --------
