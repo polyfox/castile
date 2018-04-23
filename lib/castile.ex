@@ -3,8 +3,6 @@ defmodule Castile do
   Documentation for Castile.
   """
 
-  alias :erlsom, as: Erlsom
-
   @priv_dir Application.app_dir(:castile, "priv")
 
   import Record
@@ -17,54 +15,63 @@ defmodule Castile do
   defrecord :soap_operation,         :"soap:tOperation",        [:attrs, :required,  :action,   :style]
   defrecord :soap_address,           :"soap:tAddress",          [:attrs, :required,  :location]
 
+  # elixir uses defrecord to interface with erlang but uses nil instead of the
+  # erlang default: undefined...?!
+  defrecord :soap_fault,    :"soap:Fault",    [attrs: :undefined, faultcode: :undefined, faultstring: :undefined, faultactor: :undefined, detail: :undefined]
+  defrecord :soap_body,     :"soap:Body",     [attrs: :undefined, choice: :undefined]
+  defrecord :soap_header,   :"soap:Header",   [attrs: :undefined, choice: :undefined]
+  defrecord :soap_envelope, :"soap:Envelope", [attrs: :undefined, header: :undefined, body: :undefined, choice: :undefined]
+
   defmodule Model do
     defstruct [:operations, :model]
-    @type t :: %__MODULE__{operations: [map], model: term}
+    @type t :: %__MODULE__{operations: map, model: term}
   end
 
-  @spec init_model(String.t, prefix :: char) :: Model.t
-  def init_model(wsdl_file, prefix \\ 'p') do
+  @spec init_model(String.t, namespaces :: list) :: Model.t
+  def init_model(wsdl_file, namespaces \\ []) do
     wsdl = Path.join([@priv_dir, "wsdl.xsd"])
-    {:ok, wsdl_model} = Erlsom.compile_xsd_file(
+    {:ok, wsdl_model} = :erlsom.compile_xsd_file(
       Path.join([@priv_dir, "soap.xsd"]),
       prefix: 'soap',
       include_files: [{'http://schemas.xmlsoap.org/wsdl/', 'wsdl', wsdl}]
     )
     # add the xsd model
-    wsdl_model = Erlsom.add_xsd_model(wsdl_model)
+    wsdl_model = :erlsom.add_xsd_model(wsdl_model)
 
     include_dir = Path.dirname(wsdl_file)
     options = [dir_list: include_dir]
 
     # parse wsdl
-    {model, operations} = parse_wsdls([wsdl_file], prefix, wsdl_model, options, {nil, %{}})
+    {model, operations} = parse_wsdls([wsdl_file], namespaces, wsdl_model, options, {nil, %{}})
 
     # TODO: add files as required
     # now compile envelope.xsd, and add Model
-    {:ok, envelope_model} = Erlsom.compile_xsd_file(Path.join([@priv_dir, "envelope.xsd"]), prefix: 'soap')
-    soap_model = Erlsom.add_model(envelope_model, model)
+    {:ok, envelope_model} = :erlsom.compile_xsd_file(Path.join([@priv_dir, "envelope.xsd"]), prefix: 'soap')
+    soap_model = :erlsom.add_model(envelope_model, model)
     # TODO: detergent enables you to pass some sort of AddFiles that will stitch together the soap model
     # SoapModel2 = addModels(AddFiles, SoapModel),
 
     %Model{operations: operations, model: soap_model}
   end
 
-  def parse_wsdls([], _prefix, _wsdl_model, _opts, acc), do: acc
+  def parse_wsdls([], _namespaces, _wsdl_model, _opts, acc), do: acc
 
-  def parse_wsdls([path | rest], prefix, wsdl_model, opts, {acc_model, acc_operations}) do
+  def parse_wsdls([path | rest], namespaces, wsdl_model, opts, {acc_model, acc_operations}) do
     {:ok, wsdl_file} = get_file(String.trim(path))
-    {:ok, parsed, _} = Erlsom.scan(wsdl_file, wsdl_model)
+    {:ok, parsed, _} = :erlsom.scan(wsdl_file, wsdl_model)
     # get xsd elements from wsdl to compile
     xsds = extract_wsdl_xsds(parsed)
     # Now we need to build a list: [{Namespace, Prefix, Xsd}, ...] for all the Xsds in the WSDL.
-    # This list is used when a schema inlcudes one of the other schemas. The AXIS java2wsdl
+    # This list is used when a schema includes one of the other schemas. The AXIS java2wsdl
     # generates wsdls that depend on this feature.
     import_list = Enum.map(xsds, fn xsd ->
-      {:erlsom_lib.getTargetNamespaceFromXsd(xsd), nil, xsd}
+      uri = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
+      prefix = :proplists.get_value(uri, namespaces, :undefined)
+      {uri, prefix, xsd}
     end)
 
     # TODO: pass the right options here
-    model = add_schemas(xsds, prefix, opts, import_list, acc_model)
+    model = add_schemas(xsds, opts, import_list, acc_model)
 
     ports = get_ports(parsed)
     operations = get_operations(parsed, ports)
@@ -75,18 +82,19 @@ defmodule Castile do
     # processed as well).
     # For the moment, the namespace is ignored on operations etc.
     # this makes it a bit easier to deal with imported wsdl's.
-    acc = parse_wsdls(imports, prefix, wsdl_model, opts, acc)
-    parse_wsdls(rest, prefix, wsdl_model, opts, acc)
+    acc = parse_wsdls(imports, namespaces, wsdl_model, opts, acc)
+    parse_wsdls(rest, namespaces, wsdl_model, opts, acc)
   end
 
   # compile each of the schemas, and add it to the model.
   # Returns Model
-  # (TODO: using the same prefix for all XSDS makes no sense, generate one)
-  def add_schemas(xsds, prefix, opts, imports, acc_model \\ nil) do
+  def add_schemas(xsds, opts, imports, acc_model \\ nil) do
     Enum.reduce(xsds, acc_model, fn xsd, acc ->
       case xsd do
         nil -> acc
         _ ->
+          tns = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
+          prefix = elem(List.keyfind(imports, tns, 0), 1)
           {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, [{:prefix, prefix}, {:include_files, imports} | opts])
 
           case acc_model do
@@ -176,17 +184,30 @@ defmodule Castile do
 
   # --- Introspection --------
 
+  defrecord :model, :model, [:types, :namespaces, :target_namespace, :type_hierarchy, :any_attribs, :value_fun]
   defrecord :type, [:name, :tp, :els, :attrs, :anyAttr, :nillable, :nr, :nm, :mx, :mxd, :typeName]
   defrecord :el,   [:alts, :mn, :mx, :nillable, :nr]
   defrecord :alt,  [:tag, :type, :nxt, :mn, :mx, :rl, :anyInfo]
   defrecord :attr, :att, [:name, :nr, :opt, :tp]
 
-  defrecord :erlsom_model, :model, [:types, :namespaces, :target_namespace, :type_hierarchy, :any_attribs, :value_fun]
+  @spec convert(Model.t, operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
+  def convert(%Model{model: model(types: types)} = model, operation, params) do
+    operation
+    |> cast_type(params, types)
+    |> List.wrap()
+    |> wrap_envelope()
+    |> :erlsom.write(model.model, output: :binary)
+  end
 
-  @spec convert(operation :: atom, input :: map, Model.t) :: {:ok, binary} | {:error, term}
-  def convert(operation, map, %Model{model: erlsom_model(types: types), operations: ops} = model) do
-    tup = cast_type(operation, map, types)
-    Erlsom.write(tup, model.model, output: :binary)
+  @spec wrap_envelope(messages :: list, headers :: list) :: term
+  def wrap_envelope(messages, headers \\ [])
+
+  def wrap_envelope(messages, []) when is_list(messages) do
+    soap_envelope(body: soap_body(choice: messages))
+  end
+
+  def wrap_envelope(messages, headers) when is_list(messages) and is_list(headers) do
+    soap_envelope(body: soap_body(choice: messages), header: soap_header(choice: headers))
   end
 
   @spec cast_type(name :: atom, input :: map, types :: term) :: tuple
@@ -221,4 +242,13 @@ defmodule Castile do
     end
   end
 
+  # ---
+
+  @spec call(wsdl :: Model.t, operation :: atom, params :: map) :: {:ok, term} | {:error, term}
+  def call(model, operation, params \\ %{}) do
+    op = model.operations[to_string(operation)]
+    params = convert(model, operation, params)
+
+    # http call
+  end
 end
