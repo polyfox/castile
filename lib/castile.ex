@@ -6,7 +6,7 @@ defmodule Castile do
   @priv_dir Application.app_dir(:castile, "priv")
 
   import Record
-  defrecord :wsdl_definitions, :"wsdl:tDefinitions",      [:attrs, :namespace, :name,     :docs,   :any,    :choice]
+  defrecord :wsdl_definitions, :"wsdl:tDefinitions",      [:attrs, :namespace, :name,     :docs,   :any,    :imports, :types, :messages, :port_types, :bindings, :services]
   defrecord :wsdl_service,     :"wsdl:tService",          [:attrs, :name,      :docs,     :choice, :ports]
   defrecord :wsdl_port,        :"wsdl:tPort",             [:attrs, :name,      :binding,  :docs,   :choice]
   defrecord :wsdl_binding,     :"wsdl:tBinding",          [:attrs, :binding,   :type,     :docs,   :choice, :ops]
@@ -127,32 +127,15 @@ defmodule Castile do
     File.read(uri)
   end
 
-  def extract_wsdl_xsds(wsdl) do
-    case get_toplevel_elements(wsdl, :"wsdl:tTypes") do
-      [{:"wsdl:tTypes", _attrs, _docs, choice}] -> choice
-      [] -> []
-    end
-  end
-
-  def get_toplevel_elements(wsdl_definitions(choice: choice), type) do
-    # TODO: reduce using function sigs instead
-    Enum.reduce(choice, [], fn
-      {:"wsdl:anyTopLevelOptionalElement", _attrs, tuple}, acc ->
-        case elem(tuple, 0) do
-          ^type -> [tuple | acc]
-          _ -> acc
-        end
-      _, acc -> acc
-    end)
-  end
+  def extract_wsdl_xsds(wsdl_definitions(types: [type])), do: type
+  def extract_wsdl_xsds(wsdl_definitions()), do: []
 
   # TODO: soap1.2
 
   # %% returns [#port{}]
   # %% -record(port, {service, port, binding, address}).
 
-  def get_ports(parsed_wsdl) do
-    services = get_toplevel_elements(parsed_wsdl, :"wsdl:tService")
+  def get_ports(wsdl_definitions(services: services)) do
     Enum.reduce(services, [], fn service, acc ->
       wsdl_service(name: service_name, ports: ports) = service
       Enum.reduce(ports, acc, fn
@@ -167,11 +150,15 @@ defmodule Castile do
     end)
   end
 
+  # get service -> port --> binding --> portType -> operation -> response-or-one-way -> param -|-|-> message
+  #                     |-> bindingOperation --> message
   def get_operations(parsed_wsdl, ports, model) do
-    bindings = get_toplevel_elements(parsed_wsdl, :"wsdl:tBinding")
+    bindings = wsdl_definitions(parsed_wsdl, :bindings)
     Enum.reduce(bindings, %{}, fn (wsdl_binding(binding: binding, ops: ops, type: pt), acc) ->
       port_type = :erlsom_lib.localName(pt)
-      port_type = wsdl_port_type(get_port_type(parsed_wsdl, port_type), :operation)
+      port_type = get_port_type(parsed_wsdl, port_type)
+      IO.inspect port_type
+      port_type = wsdl_port_type(port_type, :operation)
 
       Enum.reduce(ops, acc, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
         case choice do
@@ -203,23 +190,19 @@ defmodule Castile do
     end)
   end
 
-  def get_imports(parsed_wsdl) do
-    parsed_wsdl
-    |> get_toplevel_elements(:"wsdl:tImport")
-    |> Enum.map(fn wsdl_import(location: location) -> to_string(location) end)
+  def get_imports(wsdl_definitions(imports: imports)) do
+    Enum.map(imports, fn wsdl_import(location: location) -> to_string(location) end)
   end
 
-  def get_port_type(parsed_wsdl, type) do
-    parsed_wsdl
-    |> get_toplevel_elements(:"wsdl:tPortType")
-    |> List.keyfind(type, 2)
+  def get_port_type(wsdl_definitions(port_types: port_types), type) when is_list(port_types) do
+    List.keyfind(port_types, type, 2)
   end
 
   defp extract_type(parsed_wsdl, model, wsdl_param(message: message)) do
     type = :erlsom_lib.localName(message)
     parts = 
       parsed_wsdl
-      |> get_toplevel_elements(:"wsdl:tMessage")
+      |> wsdl_definitions(:messages)
       |> List.keyfind(type, 2)
       |> wsdl_message(:part)
     extract_type(parsed_wsdl, model, parts)
