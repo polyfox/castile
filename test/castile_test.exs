@@ -17,6 +17,6 @@ defmodule CastileTest do
       last_name: "Doe",
       projects: ["First project", "Second project"]
     })
-    IO.puts xml
+    assert xml == ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><erlsom:contact xmlns:erlsom="http://example.com/contacts.xsd"><id>10</id><first_name>John</first_name><last_name>Doe</last_name><projects>First project</projects><projects>Second project</projects></erlsom:contact></soap:Body></soap:Envelope>)
   end
 end

@@ -19,7 +19,6 @@ defmodule Castile do
   defrecord :wsdl_request_response, :"wsdl:request-response-or-one-way-operation", [:attrs, :input, :output, :fault]
   defrecord :wsdl_param, :"wsdl:tParam", [:attrs, :name, :message, :docs]
 
-
   defrecord :soap_operation,   :"soap:tOperation",        [:attrs, :required,  :action,   :style]
   defrecord :soap_address,     :"soap:tAddress",          [:attrs, :required,  :location]
   # elixir uses defrecord to interface with erlang but uses nil instead of the
@@ -87,7 +86,6 @@ defmodule Castile do
     model = add_schemas(xsds, opts, import_list, acc_model)
 
     acc = {model, [parsed | acc_wsdl]}
-
     imports = get_imports(parsed)
     # process imports (recursively, so that imports in the imported files are
     # processed as well).
@@ -106,7 +104,8 @@ defmodule Castile do
         _ ->
           tns = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
           prefix = elem(List.keyfind(imports, tns, 0), 1)
-          {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, [{:prefix, prefix}, {:include_files, imports} | opts])
+          opts = [{:prefix, prefix}, {:include_files, imports} | opts]
+          {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, opts)
 
           case acc_model do
             nil -> model
@@ -147,8 +146,9 @@ defmodule Castile do
       (wsdl_definitions(services: services), acc) when is_list(services) ->
         Enum.reduce(services, acc, fn service, acc ->
           wsdl_service(name: service_name, ports: ports) = service
+          # TODO: ensure ports not :undefined
           Enum.reduce(ports, acc, fn
-            wsdl_port(name: name, binding: binding, choice: choice), acc ->
+            wsdl_port(name: name, binding: binding, choice: choice), acc when is_list(choice) ->
               Enum.reduce(choice, acc, fn
                 soap_address(location: location), acc ->
                   [%{service: service_name, port: name, binding: binding, address: location} | acc]
@@ -161,6 +161,7 @@ defmodule Castile do
     end)
   end
 
+  # TODO: having to say pos outside of the func is nasty but meh.
   def get_node(wsdls, qname, type_pos, pos) do
     uri   = :erlsom_lib.getUriFromQname(qname)
     local = :erlsom_lib.localName(qname)
@@ -173,11 +174,11 @@ defmodule Castile do
   # get service -> port --> binding --> portType -> operation -> response-or-one-way -> param -|-|-> message
   #                     |-> bindingOperation --> message
   def get_operations(wsdls, ports, model) do
-    Enum.map(ports, fn %{binding: binding} = port ->
+    Enum.reduce(ports, %{}, fn (%{binding: binding} = port, acc) ->
       bind = get_node(wsdls, binding, wsdl_definitions(:bindings), wsdl_binding(:name))
       wsdl_binding(ops: ops, type: pt) = bind
 
-      Enum.reduce(ops, %{}, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
+      Enum.reduce(ops, acc, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
         case choice do
           [soap_operation(action: action)] ->
             # lookup Binding in PortType, and create a combined result
@@ -186,7 +187,7 @@ defmodule Castile do
 
             operation = List.keyfind(operations, name, wsdl_operation(:name))
             params = wsdl_operation(operation, :choice)
-            wsdl_request_response(input: input, output: output, fault: fault) = params
+            wsdl_request_response(input: input, output: output, fault: _fault) = params
 
             Map.put_new(acc, to_string(name), %{
               service: port.service,
@@ -220,10 +221,10 @@ defmodule Castile do
       |> wsdl_message(:part)
     extract_type(wsdls, model, parts)
   end
-  defp extract_type(wsdls, model, [wsdl_part(element: :undefined, type: type, name: name)]) do
+  defp extract_type(_wsdls, _model, [wsdl_part(element: :undefined)]) do
     raise "Unhandled"
   end
-  defp extract_type(wsdls, model, [wsdl_part(element: el, name: name)]) do
+  defp extract_type(_wsdls, model, [wsdl_part(element: el, name: name)]) do
     local = :erlsom_lib.localName(el)
     uri = :erlsom_lib.getUriFromQname(el)
     prefix = :erlsom_lib.getPrefixFromModel(model, uri)
