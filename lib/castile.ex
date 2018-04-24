@@ -5,36 +5,34 @@ defmodule Castile do
 
   @priv_dir Application.app_dir(:castile, "priv")
 
-  import Record
-  defrecord :wsdl_definitions, :"wsdl:tDefinitions",      [:attrs, :namespace, :name,     :docs,   :any,    :imports, :types, :messages, :port_types, :bindings, :services]
-  defrecord :wsdl_service,     :"wsdl:tService",          [:attrs, :name,      :docs,     :choice, :ports]
-  defrecord :wsdl_port,        :"wsdl:tPort",             [:attrs, :name,      :binding,  :docs,   :choice]
-  defrecord :wsdl_binding,     :"wsdl:tBinding",          [:attrs, :name,      :type,     :docs,   :choice, :ops]
-  defrecord :wsdl_binding_operation,   :"wsdl:tBindingOperation", [:attrs, :name,      :docs,     :choice, :input,  :output, :fault]
-  defrecord :wsdl_import,      :"wsdl:tImport",           [:attrs, :namespace, :location, :docs]
-  defrecord :wsdl_port_type,   :"wsdl:tPortType",         [:attrs, :name, :docs, :operations]
-  defrecord :wsdl_part,        :"wsdl:tPart",             [:attrs, :name,      :element, :type,   :docs]
-  defrecord :wsdl_message,     :"wsdl:tMessage",          [:attrs, :name,      :docs,    :choice, :part]
-  defrecord :wsdl_operation,   :"wsdl:tOperation",        [:attrs, :name,      :parameterOrder,     :docs, :any,  :choice]
-  defrecord :wsdl_request_response, :"wsdl:request-response-or-one-way-operation", [:attrs, :input, :output, :fault]
-  defrecord :wsdl_param, :"wsdl:tParam", [:attrs, :name, :message, :docs]
-
-  defrecord :soap_operation,   :"soap:tOperation",        [:attrs, :required,  :action,   :style]
-  defrecord :soap_address,     :"soap:tAddress",          [:attrs, :required,  :location]
-  # elixir uses defrecord to interface with erlang but uses nil instead of the
-  # erlang default: undefined...?!
-  defrecord :soap_fault,    :"soap:Fault",    [attrs: :undefined, faultcode: :undefined, faultstring: :undefined, faultactor: :undefined, detail: :undefined]
-  defrecord :soap_body,     :"soap:Body",     [attrs: :undefined, choice: :undefined]
-  defrecord :soap_header,   :"soap:Header",   [attrs: :undefined, choice: :undefined]
-  defrecord :soap_envelope, :"soap:Envelope", [attrs: :undefined, header: :undefined, body: :undefined, choice: :undefined]
+  import Castile.Erlsom
+  import Castile.WSDL
+  import Castile.SOAP
 
   defmodule Model do
+    @doc """
+    A representation of the WSDL model, containing the type XSD schema and all
+    other WSDL metadata.
+    """
     defstruct [:operations, :model]
     @type t :: %__MODULE__{operations: map, model: term}
   end
 
+  @doc """
+  Initializes a service model from a WSDL file. This parses the WSDL and it's
+  imports recursively, building an internal model of all the XSD types and
+  SOAP metadata for later use.
+
+  Similar to Elixir's pre-compiled Regexes, it's recommended to do this at
+  compile-time in an @attribute.
+
+  ## Examples
+
+      iex> model = Castile.init_model("CountryInfoService.wsdl")
+      %Castile.Model{...}
+  """
   # TODO: take namespaces as binary
-  @spec init_model(String.t, namespaces :: list) :: Model.t
+  @spec init_model(Path.t, namespaces :: list) :: Model.t
   def init_model(wsdl_file, namespaces \\ []) do
     wsdl = Path.join([@priv_dir, "wsdl.xsd"])
     {:ok, wsdl_model} = :erlsom.compile_xsd_file(
@@ -58,17 +56,16 @@ defmodule Castile do
     # TODO: detergent enables you to pass some sort of AddFiles that will stitch together the soap model
     # SoapModel2 = addModels(AddFiles, SoapModel),
 
-    # process
+    # process wsdls
     ports = get_ports(wsdls)
     operations = get_operations(wsdls, ports, model)
-    #Map.merge(acc_operations, operations, fn _,_,_ -> raise "Unexpected duplicate" end)
 
     %Model{operations: operations, model: soap_model}
   end
 
-  def parse_wsdls([], _namespaces, _wsdl_model, _opts, acc), do: acc
+  defp parse_wsdls([], _namespaces, _wsdl_model, _opts, acc), do: acc
 
-  def parse_wsdls([path | rest], namespaces, wsdl_model, opts, {acc_model, acc_wsdl}) do
+  defp parse_wsdls([path | rest], namespaces, wsdl_model, opts, {acc_model, acc_wsdl}) do
     {:ok, wsdl_file} = get_file(String.trim(path))
     {:ok, parsed, _} = :erlsom.scan(wsdl_file, wsdl_model)
     # get xsd elements from wsdl to compile
@@ -97,7 +94,7 @@ defmodule Castile do
 
   # compile each of the schemas, and add it to the model.
   # Returns Model
-  def add_schemas(xsds, opts, imports, acc_model \\ nil) do
+  defp add_schemas(xsds, opts, imports, acc_model \\ nil) do
     Enum.reduce(xsds, acc_model, fn xsd, acc ->
       case xsd do
         nil -> acc
@@ -115,33 +112,29 @@ defmodule Castile do
     end)
   end
 
-  def get_file(uri) do
+  defp get_file(uri) do
     case URI.parse(uri) do
       %{scheme: scheme} when scheme in ["http", "https"] ->
         raise "Not implemented"
         # get_remote_file()
       _ ->
-        get_local_file(uri)
+        File.read(uri)
     end
   end
 
-  def get_local_file(uri) do
-    File.read(uri)
-  end
-
-  def extract_wsdl_xsds(wsdl_definitions(types: types)) when is_list(types) do
+  defp extract_wsdl_xsds(wsdl_definitions(types: types)) when is_list(types) do
     types
     |> Enum.map(fn {:"wsdl:tTypes", _attrs, _docs, types} -> types end)
     |> List.flatten()
   end
-  def extract_wsdl_xsds(wsdl_definitions()), do: []
+  defp extract_wsdl_xsds(wsdl_definitions()), do: []
 
   # TODO: soap1.2
 
   # %% returns [#port{}]
   # %% -record(port, {service, port, binding, address}).
 
-  def get_ports(wsdls) do
+  defp get_ports(wsdls) do
     Enum.reduce(wsdls, [], fn
       (wsdl_definitions(services: services), acc) when is_list(services) ->
         Enum.reduce(services, acc, fn service, acc ->
@@ -162,7 +155,7 @@ defmodule Castile do
   end
 
   # TODO: having to say pos outside of the func is nasty but meh.
-  def get_node(wsdls, qname, type_pos, pos) do
+  defp get_node(wsdls, qname, type_pos, pos) do
     uri   = :erlsom_lib.getUriFromQname(qname)
     local = :erlsom_lib.localName(qname)
     ns = get_namespace(wsdls, uri)
@@ -173,7 +166,7 @@ defmodule Castile do
 
   # get service -> port --> binding --> portType -> operation -> response-or-one-way -> param -|-|-> message
   #                     |-> bindingOperation --> message
-  def get_operations(wsdls, ports, model) do
+  defp get_operations(wsdls, ports, model) do
     Enum.reduce(ports, %{}, fn (%{binding: binding} = port, acc) ->
       bind = get_node(wsdls, binding, wsdl_definitions(:bindings), wsdl_binding(:name))
       wsdl_binding(ops: ops, type: pt) = bind
@@ -205,12 +198,12 @@ defmodule Castile do
     end)
   end
 
-  def get_namespace(wsdls, uri) when is_list(wsdls) do
+  defp get_namespace(wsdls, uri) when is_list(wsdls) do
     List.keyfind(wsdls, uri, wsdl_definitions(:namespace))
   end
 
-  def get_imports(wsdl_definitions(imports: :undefined)), do: []
-  def get_imports(wsdl_definitions(imports: imports)) do
+  defp get_imports(wsdl_definitions(imports: :undefined)), do: []
+  defp get_imports(wsdl_definitions(imports: imports)) do
     Enum.map(imports, fn wsdl_import(location: location) -> to_string(location) end)
   end
 
@@ -239,14 +232,14 @@ defmodule Castile do
   defp extract_type(_, _, nil), do: nil
   defp extract_type(_, _, :undefined), do: nil
 
-  # --- Introspection --------
+  @doc """
+  Converts an operation's parameters into XML.
 
-  defrecord :model, :model, [:types, :namespaces, :target_namespace, :type_hierarchy, :any_attribs, :value_fun]
-  defrecord :type, [:name, :tp, :els, :attrs, :anyAttr, :nillable, :nr, :nm, :mx, :mxd, :typeName]
-  defrecord :el,   [:alts, :mn, :mx, :nillable, :nr]
-  defrecord :alt,  [:tag, :type, :nxt, :mn, :mx, :rl, :anyInfo]
-  defrecord :attr, :att, [:name, :nr, :opt, :tp]
+  ## Examples
 
+      iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
+      {:ok, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>"}
+  """
   @spec convert(Model.t, operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
   def convert(%Model{model: model(types: types)} = model, operation, params) do
     get_in(model.operations, [to_string(operation), :input])
@@ -257,20 +250,19 @@ defmodule Castile do
   end
 
   @spec wrap_envelope(messages :: list, headers :: list) :: term
-  def wrap_envelope(messages, headers \\ [])
+  defp wrap_envelope(messages, headers \\ [])
 
-  def wrap_envelope(messages, []) when is_list(messages) do
+  defp wrap_envelope(messages, []) when is_list(messages) do
     soap_envelope(body: soap_body(choice: messages))
   end
 
-  def wrap_envelope(messages, headers) when is_list(messages) and is_list(headers) do
+  defp wrap_envelope(messages, headers) when is_list(messages) and is_list(headers) do
     soap_envelope(body: soap_body(choice: messages), header: soap_header(choice: headers))
   end
 
   @spec cast_type(name :: atom, input :: map, types :: term) :: tuple
   def cast_type(name, input, types) do
     spec = List.keyfind(types, name, type(:name))
-    IO.inspect spec
 
     # TODO: check type(spec, :tp) and handle other things than :sequence
     vals =
@@ -281,7 +273,7 @@ defmodule Castile do
   end
 
   # TODO: will need to pass through parent type possibly
-  def convert_el(el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: _nr), map, types) do
+  defp convert_el(el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: _nr), map, types) do
     case Map.get(map, tag) do
       nil ->
         cond do
@@ -302,6 +294,14 @@ defmodule Castile do
 
   # ---
 
+  @doc """
+  Calls a SOAP service operation.
+
+  ## Examples
+
+      iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
+      {:ok, "NL"}
+  """
   @spec call(wsdl :: Model.t, operation :: atom, params :: map) :: {:ok, term} | {:error, term}
   def call(model, operation, params \\ %{}) do
     op = model.operations[to_string(operation)]
