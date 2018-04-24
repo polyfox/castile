@@ -26,6 +26,14 @@ Docs can be found at [https://hexdocs.pm/castile](https://hexdocs.pm/castile).
 # It's recommended to do init_model at compile time, as an @attr
 @model = Castile.init_model("CountryInfoService.wsdl")
 
-Castile.call(@model, :CountryISOCode, %{sCountryName: "Netherlands"})
+{:ok, resp} = Castile.call(@model, :CountryISOCode, %{sCountryName: "Netherlands"})
 ```
 
+# TODO
+
+- [ ] HTTP client as adapter (specify module)
+- [ ] SOAP 1.2 support
+- [ ] RPC/encoding RPC/literal style (multiple bodies)
+- [ ] WSDL 2.0 support
+- [ ] Attachments/multipart
+- [ ] Faults
