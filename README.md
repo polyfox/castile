@@ -18,7 +18,14 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/castile](https://hexdocs.pm/castile).
+Docs can be found at [https://hexdocs.pm/castile](https://hexdocs.pm/castile).
+
+## Usage
+
+```elixir
+# It's recommended to do init_model at compile time, as an @attr
+@model = Castile.init_model("CountryInfoService.wsdl")
+
+Castile.call(@model, :CountryISOCode, %{sCountryName: "Netherlands"})
+```
 

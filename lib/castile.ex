@@ -305,8 +305,18 @@ defmodule Castile do
   @spec call(wsdl :: Model.t, operation :: atom, params :: map) :: {:ok, term} | {:error, term}
   def call(model, operation, params \\ %{}) do
     op = model.operations[to_string(operation)]
-    params = convert(model, operation, params)
+    {:ok, params} = convert(model, operation, params)
 
     # http call
+    headers =  [{"Content-Type", "text/xml; encoding=utf-8"}, {"SOAPAction", to_string(op.action)}]
+    {:ok, %HTTPoison.Response{status_code: 200, body: body}} = HTTPoison.post(to_string(op.address), params, headers)
+    # TODO: check content type for multipart
+    # TODO: handle response headers
+    {:ok, resp, []} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+
+    output = op.output
+    soap_envelope(body: soap_body(choice: [{^output, _, body}])) = resp
+    # TODO parse body further into a map
+    {:ok, body}
   end
 end
