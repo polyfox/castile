@@ -9,10 +9,10 @@ defmodule Castile do
   defrecord :wsdl_definitions, :"wsdl:tDefinitions",      [:attrs, :namespace, :name,     :docs,   :any,    :imports, :types, :messages, :port_types, :bindings, :services]
   defrecord :wsdl_service,     :"wsdl:tService",          [:attrs, :name,      :docs,     :choice, :ports]
   defrecord :wsdl_port,        :"wsdl:tPort",             [:attrs, :name,      :binding,  :docs,   :choice]
-  defrecord :wsdl_binding,     :"wsdl:tBinding",          [:attrs, :binding,   :type,     :docs,   :choice, :ops]
+  defrecord :wsdl_binding,     :"wsdl:tBinding",          [:attrs, :name,      :type,     :docs,   :choice, :ops]
   defrecord :wsdl_binding_operation,   :"wsdl:tBindingOperation", [:attrs, :name,      :docs,     :choice, :input,  :output, :fault]
   defrecord :wsdl_import,      :"wsdl:tImport",           [:attrs, :namespace, :location, :docs]
-  defrecord :wsdl_port_type,   :"wsdl:tPortType",         [:attrs, :name, :docs, :operation]
+  defrecord :wsdl_port_type,   :"wsdl:tPortType",         [:attrs, :name, :docs, :operations]
   defrecord :wsdl_part,        :"wsdl:tPart",             [:attrs, :name,      :element, :type,   :docs]
   defrecord :wsdl_message,     :"wsdl:tMessage",          [:attrs, :name,      :docs,    :choice, :part]
   defrecord :wsdl_operation,   :"wsdl:tOperation",        [:attrs, :name,      :parameterOrder,     :docs, :any,  :choice]
@@ -50,7 +50,7 @@ defmodule Castile do
     options = [dir_list: include_dir]
 
     # parse wsdl
-    {model, operations} = parse_wsdls([wsdl_file], namespaces, wsdl_model, options, {nil, %{}})
+    {model, wsdls} = parse_wsdls([wsdl_file], namespaces, wsdl_model, options, {nil, []})
 
     # TODO: add files as required
     # now compile envelope.xsd, and add Model
@@ -59,12 +59,17 @@ defmodule Castile do
     # TODO: detergent enables you to pass some sort of AddFiles that will stitch together the soap model
     # SoapModel2 = addModels(AddFiles, SoapModel),
 
+    # process
+    ports = get_ports(wsdls)
+    operations = get_operations(wsdls, ports, model)
+    #Map.merge(acc_operations, operations, fn _,_,_ -> raise "Unexpected duplicate" end)
+
     %Model{operations: operations, model: soap_model}
   end
 
   def parse_wsdls([], _namespaces, _wsdl_model, _opts, acc), do: acc
 
-  def parse_wsdls([path | rest], namespaces, wsdl_model, opts, {acc_model, acc_operations}) do
+  def parse_wsdls([path | rest], namespaces, wsdl_model, opts, {acc_model, acc_wsdl}) do
     {:ok, wsdl_file} = get_file(String.trim(path))
     {:ok, parsed, _} = :erlsom.scan(wsdl_file, wsdl_model)
     # get xsd elements from wsdl to compile
@@ -81,11 +86,9 @@ defmodule Castile do
     # TODO: pass the right options here
     model = add_schemas(xsds, opts, import_list, acc_model)
 
-    ports = get_ports(parsed)
-    operations = get_operations(parsed, ports, model)
-    imports = get_imports(parsed)
+    acc = {model, [parsed | acc_wsdl]}
 
-    acc = {model, Map.merge(acc_operations, operations, fn _,_,_ -> raise "Unexpected duplicate" end)}
+    imports = get_imports(parsed)
     # process imports (recursively, so that imports in the imported files are
     # processed as well).
     # For the moment, the namespace is ignored on operations etc.
@@ -127,7 +130,11 @@ defmodule Castile do
     File.read(uri)
   end
 
-  def extract_wsdl_xsds(wsdl_definitions(types: [type])), do: type
+  def extract_wsdl_xsds(wsdl_definitions(types: types)) when is_list(types) do
+    types
+    |> Enum.map(fn {:"wsdl:tTypes", _attrs, _docs, types} -> types end)
+    |> List.flatten()
+  end
   def extract_wsdl_xsds(wsdl_definitions()), do: []
 
   # TODO: soap1.2
@@ -135,82 +142,88 @@ defmodule Castile do
   # %% returns [#port{}]
   # %% -record(port, {service, port, binding, address}).
 
-  def get_ports(wsdl_definitions(services: services)) do
-    Enum.reduce(services, [], fn service, acc ->
-      wsdl_service(name: service_name, ports: ports) = service
-      Enum.reduce(ports, acc, fn
-        wsdl_port(name: name, binding: binding, choice: choice), acc ->
-          Enum.reduce(choice, acc, fn
-            soap_address(location: location), acc ->
-              [%{service: service_name, port: name, binding: binding, address: location} | acc]
-            _, acc -> acc # non-soap bindings are ignored
+  def get_ports(wsdls) do
+    Enum.reduce(wsdls, [], fn
+      (wsdl_definitions(services: services), acc) when is_list(services) ->
+        Enum.reduce(services, acc, fn service, acc ->
+          wsdl_service(name: service_name, ports: ports) = service
+          Enum.reduce(ports, acc, fn
+            wsdl_port(name: name, binding: binding, choice: choice), acc ->
+              Enum.reduce(choice, acc, fn
+                soap_address(location: location), acc ->
+                  [%{service: service_name, port: name, binding: binding, address: location} | acc]
+                _, acc -> acc # non-soap bindings are ignored
+              end)
+              _, acc -> acc
           end)
-          _, acc -> acc
-      end)
+        end)
+      _, acc -> acc
     end)
+  end
+
+  def get_node(wsdls, qname, type_pos, pos) do
+    uri   = :erlsom_lib.getUriFromQname(qname)
+    local = :erlsom_lib.localName(qname)
+    ns = get_namespace(wsdls, uri)
+
+    objs = elem(ns, type_pos)
+    List.keyfind(objs, local, pos)
   end
 
   # get service -> port --> binding --> portType -> operation -> response-or-one-way -> param -|-|-> message
   #                     |-> bindingOperation --> message
-  def get_operations(parsed_wsdl, ports, model) do
-    bindings = wsdl_definitions(parsed_wsdl, :bindings)
-    Enum.reduce(bindings, %{}, fn (wsdl_binding(binding: binding, ops: ops, type: pt), acc) ->
-      port_type = :erlsom_lib.localName(pt)
-      port_type = get_port_type(parsed_wsdl, port_type)
-      IO.inspect port_type
-      port_type = wsdl_port_type(port_type, :operation)
+  def get_operations(wsdls, ports, model) do
+    Enum.map(ports, fn %{binding: binding} = port ->
+      bind = get_node(wsdls, binding, wsdl_definitions(:bindings), wsdl_binding(:name))
+      wsdl_binding(ops: ops, type: pt) = bind
 
-      Enum.reduce(ops, acc, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
+      Enum.reduce(ops, %{}, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
         case choice do
           [soap_operation(action: action)] ->
-            # lookup Binding in Ports, and create a combined result
+            # lookup Binding in PortType, and create a combined result
+            port_type = get_node(wsdls, pt, wsdl_definitions(:port_types), wsdl_port_type(:name))
+            operations = wsdl_port_type(port_type, :operations)
 
-            # TODO: parse input/output
-            ports
-            |> Enum.filter(fn port -> :erlsom_lib.localName(port[:binding]) == binding end)
-            |> Enum.reduce(acc, fn port, acc ->
-              operation = List.keyfind(port_type, name, 2)
-              params = wsdl_operation(operation, :choice)
-              wsdl_request_response(input: input, output: output, fault: fault) = params
+            operation = List.keyfind(operations, name, wsdl_operation(:name))
+            params = wsdl_operation(operation, :choice)
+            wsdl_request_response(input: input, output: output, fault: fault) = params
 
-              Map.put_new(acc, to_string(name), %{
-                service: port.service,
-                port: port.port,
-                binding: binding,
-                address: port.address,
-                action: action,
-                input: extract_type(parsed_wsdl, model, input),
-                output: extract_type(parsed_wsdl, model, output),
-                fault: extract_type(parsed_wsdl, model, fault)
-              })
-            end)
+            Map.put_new(acc, to_string(name), %{
+              service: port.service,
+              port: port.port,
+              binding: binding,
+              address: port.address,
+              action: action,
+              input: extract_type(wsdls, model, input),
+              output: extract_type(wsdls, model, output),
+              #fault: extract_type(wsdls, model, fault) TODO
+            })
           _ ->  acc
         end
       end)
     end)
   end
 
+  def get_namespace(wsdls, uri) when is_list(wsdls) do
+    List.keyfind(wsdls, uri, wsdl_definitions(:namespace))
+  end
+
+  def get_imports(wsdl_definitions(imports: :undefined)), do: []
   def get_imports(wsdl_definitions(imports: imports)) do
     Enum.map(imports, fn wsdl_import(location: location) -> to_string(location) end)
   end
 
-  def get_port_type(wsdl_definitions(port_types: port_types), type) when is_list(port_types) do
-    List.keyfind(port_types, type, 2)
-  end
-
-  defp extract_type(parsed_wsdl, model, wsdl_param(message: message)) do
-    type = :erlsom_lib.localName(message)
-    parts = 
-      parsed_wsdl
-      |> wsdl_definitions(:messages)
-      |> List.keyfind(type, 2)
+  defp extract_type(wsdls, model, wsdl_param(message: message)) do
+    parts =
+      wsdls
+      |> get_node(message, wsdl_definitions(:messages), wsdl_message(:name))
       |> wsdl_message(:part)
-    extract_type(parsed_wsdl, model, parts)
+    extract_type(wsdls, model, parts)
   end
-  defp extract_type(parsed_wsdl, model, [wsdl_part(element: :undefined, type: type, name: name)]) do
+  defp extract_type(wsdls, model, [wsdl_part(element: :undefined, type: type, name: name)]) do
     raise "Unhandled"
   end
-  defp extract_type(parsed_wsdl, model, [wsdl_part(element: el, name: name)]) do
+  defp extract_type(wsdls, model, [wsdl_part(element: el, name: name)]) do
     local = :erlsom_lib.localName(el)
     uri = :erlsom_lib.getUriFromQname(el)
     prefix = :erlsom_lib.getPrefixFromModel(model, uri)
