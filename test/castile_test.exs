@@ -19,8 +19,7 @@ defmodule CastileTest do
 
     assert Map.has_key?(model.operations, "store")
     assert Map.has_key?(model.operations, "retrieve")
-
-    {:ok, xml} = Castile.convert(model, :store, %{
+    {:ok, xml} = Castile.convert(model, :contact, %{
       id: 10,
       first_name: "John",
       last_name: "Doe",
@@ -39,12 +38,27 @@ defmodule CastileTest do
       end
     end
 
+    test "CountryInfoService_complex" do
+      use_cassette "CountryInfoService_complex" do
+        path = Path.expand("fixtures/wsdls/CountryInfoService.wsdl", __DIR__)
+        model = Castile.init_model(path)
+        {:ok, resp} = Castile.call(model, :ListOfCountryNamesGroupedByContinent)
+	resp = List.first(resp[:tCountryCodeAndNameGroupedByContinent])
+        assert get_in(resp, [:Continent, :sCode]) == "AF"
+      end
+    end
+
     test "BLZService" do
       use_cassette "BLZService" do
         path = Path.expand("fixtures/wsdls/BLZService.wsdl", __DIR__)
         model = Castile.init_model(path)
         {:ok, resp} = Castile.call(model, :getBank, %{blz: "70070010"})
-        assert resp
+        assert resp == %{
+              bezeichnung: "Deutsche Bank",
+              bic: "DEUTDEMMXXX",
+              ort: "München",
+              plz: "80271"
+            }
       end
     end
 

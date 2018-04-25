@@ -337,7 +337,29 @@ defmodule Castile do
 
     output = resolve_element(op.output, types)
     soap_envelope(body: soap_body(choice: [{^output, _, body}])) = resp
-    # TODO parse body further into a map
-    {:ok, body}
+    # parse body further into a map
+    {:ok, transform(body, types)}
   end
+
+  defp transform(val, types) when is_tuple(val) do
+    spec = List.keyfind(types, elem(val, 0), type(:name))
+
+    spec
+    |> type(:els)
+    # TODO if max unbounded, then instead of skipping it, use []
+    |> Enum.reduce(%{}, fn el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: pos), acc ->
+      val = elem(val, pos - 1)
+      case t do
+        {:"#PRCDATA", _} -> val
+        t -> transform(val, types)
+      end
+      |> case do
+        nil -> acc
+        val -> Map.put(acc, tag, val)
+      end
+    end)
+  end
+  defp transform(val, types) when is_list(val), do: Enum.map(val, &transform(&1, types))
+  defp transform(:undefined, types), do: nil
+  defp transform(val, types), do: val
 end
