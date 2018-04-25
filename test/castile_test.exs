@@ -1,9 +1,20 @@
 defmodule CastileTest do
   use ExUnit.Case
+  use ExVCR.Mock, adapter: ExVCR.Adapter.Hackney
   #doctest Castile
 
+  setup_all do
+    HTTPoison.start
+  end
+
+  setup do
+    path = Path.expand("fixtures/vcr_casettes", __DIR__)
+    ExVCR.Config.cassette_library_dir(path)
+    :ok
+  end
+
   test "init_model" do
-    path = Path.expand("fixtures/example.wsdl", __DIR__)
+    path = Path.expand("fixtures/wsdls/example.wsdl", __DIR__)
     model = Castile.init_model(path)
 
     assert Map.has_key?(model.operations, "store")
@@ -16,5 +27,25 @@ defmodule CastileTest do
       projects: ["First project", "Second project"]
     })
     assert xml == ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><erlsom:contact xmlns:erlsom="http://example.com/contacts.xsd"><id>10</id><first_name>John</first_name><last_name>Doe</last_name><projects>First project</projects><projects>Second project</projects></erlsom:contact></soap:Body></soap:Envelope>)
+  end
+
+  describe "document/literal" do
+    test "CountryInfoService" do
+      use_cassette "CountryInfoService" do
+        path = Path.expand("fixtures/wsdls/CountryInfoService.wsdl", __DIR__)
+        model = Castile.init_model(path)
+        {:ok, resp} = Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
+        assert resp == "NL"
+      end
+    end
+
+    test "BLZService" do
+      use_cassette "BLZService" do
+        path = Path.expand("fixtures/wsdls/BLZService.wsdl", __DIR__)
+        model = Castile.init_model(path)
+        {:ok, resp} = Castile.call(model, :getBank, %{blz: "70070010"})
+        assert resp
+      end
+    end
   end
 end

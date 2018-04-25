@@ -29,12 +29,13 @@ defmodule Castile.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:xml_builder, "~> 2.0"},
       # hex version is old and doesn't have write/3 or write related perf
       # improvements
       {:erlsom, git: "https://github.com/willemdj/erlsom"},
       {:ex_doc, ">= 0.0.0", only: :dev},
-      {:httpoison, "~> 0.13 or ~> 1.0", optional: true}
+      {:httpoison, "~> 0.13 or ~> 1.0"}, #, optional: true},
+      {:credo, "~> 0.9.1", only: [:dev, :test], runtime: false},
+      {:exvcr, "~> 0.10", only: :test}
     ]
   end
 end
