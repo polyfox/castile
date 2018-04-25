@@ -317,13 +317,13 @@ defmodule Castile do
       iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
       {:ok, "NL"}
   """
-  @spec call(wsdl :: Model.t, operation :: atom, params :: map) :: {:ok, term} | {:error, term}
-  def call(%Model{model: model(types: types)} = model, operation, params \\ %{}) do
+  @spec call(wsdl :: Model.t, operation :: atom, params :: map, headers :: list | map) :: {:ok, term} | {:error, term}
+  def call(%Model{model: model(types: types)} = model, operation, params \\ %{}, headers \\ []) do
     op = model.operations[to_string(operation)]
     {:ok, params} = convert(model, operation, params)
 
     # http call
-    headers =  [{"Content-Type", "text/xml; encoding=utf-8"}, {"SOAPAction", op.action}]
+    headers = [{"Content-Type", "text/xml; encoding=utf-8"}, {"SOAPAction", op.action} | headers]
     {:ok, %HTTPoison.Response{status_code: 200, body: body}} = HTTPoison.post(op.address, params, headers)
     # TODO: check content type for multipart
     # TODO: handle response headers
