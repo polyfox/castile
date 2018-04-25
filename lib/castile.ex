@@ -69,13 +69,16 @@ defmodule Castile do
     # Now we need to build a list: [{Namespace, Prefix, Xsd}, ...] for all the Xsds in the WSDL.
     # This list is used when a schema includes one of the other schemas. The AXIS java2wsdl
     # generates wsdls that depend on this feature.
-    import_list = Enum.map(xsds, fn xsd ->
+    import_list = Enum.reduce(xsds, [], fn xsd, acc ->
       uri = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
-      prefix = :proplists.get_value(uri, namespaces, :undefined)
-      {uri, prefix, xsd}
+      case uri do
+        :undefined -> acc
+        _ ->
+          prefix = :proplists.get_value(uri, namespaces, :undefined)
+          [{uri, prefix, xsd} | acc]
+      end
     end)
 
-    # TODO: pass the right options here
     model = add_schemas(xsds, opts, import_list, acc_model)
 
     acc = {model, [parsed | acc_wsdl]}
@@ -91,21 +94,28 @@ defmodule Castile do
   # compile each of the schemas, and add it to the model.
   # Returns Model
   defp add_schemas(xsds, opts, imports, acc_model \\ nil) do
-    Enum.reduce(xsds, acc_model, fn xsd, acc ->
+    {model, _} = Enum.reduce(xsds, {acc_model, []}, fn xsd, {acc, imported} ->
       case xsd do
-        nil -> acc
+        nil -> {acc, imported}
         _ ->
           tns = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
           prefix = elem(List.keyfind(imports, tns, 0), 1)
-          opts = [{:prefix, prefix}, {:include_files, imports} | opts]
+          opts = [
+            {:prefix, prefix},
+            {:include_files, imports},
+            {:already_imported, imported}
+            | opts
+          ]
           {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, opts)
 
-          case acc_model do
-            nil -> model
+          model = case acc_model do
+            nil ->  model
             _ -> :erlsom.add_model(acc_model, model)
           end
+          {model, [{tns, prefix} | imported]}
       end
     end)
+    model
   end
 
   defp get_file(uri) do
