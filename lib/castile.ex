@@ -248,15 +248,20 @@ defmodule Castile do
       {:ok, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>"}
   """
   @spec convert(Model.t, operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
-  def convert(%Model{model: model(types: types)} = model, operation, params) do
-    get_in(model.operations, [to_string(operation), :input])
-    |> resolve_element(types)
+  def convert(%Model{model: model(types: types)} = model, nil, params) do
+    []
+    |> wrap_envelope()
+    |> :erlsom.write(model.model, output: :binary)
+  end
+  def convert(%Model{model: model(types: types)} = model, type, params) do
+    type
     |> cast_type(params, types)
     |> List.wrap()
     |> wrap_envelope()
     |> :erlsom.write(model.model, output: :binary)
   end
 
+  defp resolve_element(nil, types), do: nil
   defp resolve_element(name, types) do
     type(els: [el(alts: alts)]) = List.keyfind(types, :_document, type(:name))
     alts
@@ -320,11 +325,12 @@ defmodule Castile do
   @spec call(wsdl :: Model.t, operation :: atom, params :: map, headers :: list | map) :: {:ok, term} | {:error, term}
   def call(%Model{model: model(types: types)} = model, operation, params \\ %{}, headers \\ []) do
     op = model.operations[to_string(operation)]
-    {:ok, params} = convert(model, operation, params)
+    input = resolve_element(op.input, types)
+    {:ok, params} = convert(model, input, params)
 
     # http call
     headers = [{"Content-Type", "text/xml; encoding=utf-8"}, {"SOAPAction", op.action} | headers]
-    {:ok, %HTTPoison.Response{status_code: 200, body: body}} = HTTPoison.post(op.address, params, headers)
+    {:ok, %{status_code: 200, body: body}} = HTTPoison.post(op.address, params, headers)
     # TODO: check content type for multipart
     # TODO: handle response headers
     {:ok, resp, []} = :erlsom.scan(body, model.model, output_encoding: :utf8)

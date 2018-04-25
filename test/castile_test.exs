@@ -8,7 +8,7 @@ defmodule CastileTest do
   end
 
   setup do
-    path = Path.expand("fixtures/vcr_casettes", __DIR__)
+    path = Path.expand("fixtures/vcr_cassettes", __DIR__)
     ExVCR.Config.cassette_library_dir(path)
     :ok
   end
@@ -46,6 +46,9 @@ defmodule CastileTest do
         {:ok, resp} = Castile.call(model, :getBank, %{blz: "70070010"})
         assert resp
       end
+    end
+
+    test "RATP" do
     end
   end
 end
