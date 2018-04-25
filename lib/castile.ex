@@ -243,10 +243,18 @@ defmodule Castile do
   @spec convert(Model.t, operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
   def convert(%Model{model: model(types: types)} = model, operation, params) do
     get_in(model.operations, [to_string(operation), :input])
+    |> resolve_element(types)
     |> cast_type(params, types)
     |> List.wrap()
     |> wrap_envelope()
     |> :erlsom.write(model.model, output: :binary)
+  end
+
+  defp resolve_element(name, types) do
+    type(els: [el(alts: alts)]) = List.keyfind(types, :_document, type(:name))
+    alts
+    |> List.keyfind(name, alt(:tag))
+    |> alt(:type)
   end
 
   @spec wrap_envelope(messages :: list, headers :: list) :: term
@@ -303,7 +311,7 @@ defmodule Castile do
       {:ok, "NL"}
   """
   @spec call(wsdl :: Model.t, operation :: atom, params :: map) :: {:ok, term} | {:error, term}
-  def call(model, operation, params \\ %{}) do
+  def call(%Model{model: model(types: types)} = model, operation, params \\ %{}) do
     op = model.operations[to_string(operation)]
     {:ok, params} = convert(model, operation, params)
 
@@ -314,7 +322,7 @@ defmodule Castile do
     # TODO: handle response headers
     {:ok, resp, []} = :erlsom.scan(body, model.model, output_encoding: :utf8)
 
-    output = op.output
+    output = resolve_element(op.output, types)
     soap_envelope(body: soap_body(choice: [{^output, _, body}])) = resp
     # TODO parse body further into a map
     {:ok, body}
