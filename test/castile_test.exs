@@ -1,13 +1,11 @@
 defmodule CastileTest do
   use ExUnit.Case
-  doctest Castile
+  #doctest Castile
 
   test "init_model" do
     path = Path.expand("fixtures/example.wsdl", __DIR__)
     model = Castile.init_model(path)
 
-    IO.inspect model
-    assert model
     assert Map.has_key?(model.operations, "store")
     assert Map.has_key?(model.operations, "retrieve")
 
