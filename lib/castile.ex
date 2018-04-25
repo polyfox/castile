@@ -2,12 +2,8 @@ defmodule Castile do
   @moduledoc """
   Documentation for Castile.
   """
-
+  import Castile.{Erlsom, WSDL, SOAP}
   @priv_dir Application.app_dir(:castile, "priv")
-
-  import Castile.Erlsom
-  import Castile.WSDL
-  import Castile.SOAP
 
   defmodule Model do
     @doc """
@@ -158,10 +154,11 @@ defmodule Castile do
   defp get_node(wsdls, qname, type_pos, pos) do
     uri   = :erlsom_lib.getUriFromQname(qname)
     local = :erlsom_lib.localName(qname)
-    ns = get_namespace(wsdls, uri)
 
-    objs = elem(ns, type_pos)
-    List.keyfind(objs, local, pos)
+    wsdls
+    |> get_namespace(uri)
+    |> elem(type_pos)
+    |> List.keyfind(local, pos)
   end
 
   # get service -> port --> binding --> portType -> operation -> response-or-one-way -> param -|-|-> message
@@ -204,7 +201,7 @@ defmodule Castile do
 
   defp get_imports(wsdl_definitions(imports: :undefined)), do: []
   defp get_imports(wsdl_definitions(imports: imports)) do
-    Enum.map(imports, fn wsdl_import(location: location) -> location end)
+    Enum.map(imports, fn wsdl_import(location: location) -> to_string(location) end)
   end
 
   defp extract_type(wsdls, model, wsdl_param(message: message)) do
