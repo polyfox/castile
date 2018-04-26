@@ -3,7 +3,6 @@ defmodule Castile do
   Documentation for Castile.
   """
   import Castile.{Erlsom, WSDL, SOAP}
-  @priv_dir Application.app_dir(:castile, "priv")
 
   defmodule Model do
     @doc """
@@ -30,9 +29,10 @@ defmodule Castile do
   # TODO: take namespaces as binary
   @spec init_model(Path.t, namespaces :: list) :: Model.t
   def init_model(wsdl_file, namespaces \\ []) do
-    wsdl = Path.join([@priv_dir, "wsdl.xsd"])
+    priv_dir = Application.app_dir(:castile, "priv")
+    wsdl = Path.join([priv_dir, "wsdl.xsd"])
     {:ok, wsdl_model} = :erlsom.compile_xsd_file(
-      Path.join([@priv_dir, "soap.xsd"]),
+      Path.join([priv_dir, "soap.xsd"]),
       prefix: 'soap',
       include_files: [{'http://schemas.xmlsoap.org/wsdl/', 'wsdl', wsdl}]
     )
@@ -47,7 +47,7 @@ defmodule Castile do
 
     # TODO: add files as required
     # now compile envelope.xsd, and add Model
-    {:ok, envelope_model} = :erlsom.compile_xsd_file(Path.join([@priv_dir, "envelope.xsd"]), prefix: 'soap')
+    {:ok, envelope_model} = :erlsom.compile_xsd_file(Path.join([priv_dir, "envelope.xsd"]), prefix: 'soap')
     soap_model = :erlsom.add_model(envelope_model, model)
     # TODO: detergent enables you to pass some sort of AddFiles that will stitch together the soap model
     # SoapModel2 = addModels(AddFiles, SoapModel),
