@@ -40,7 +40,7 @@ defmodule Castile do
     wsdl_model = :erlsom.add_xsd_model(wsdl_model)
 
     include_dir = Path.dirname(wsdl_file)
-    options = [dir_list: include_dir]
+    options = [dir_list: [include_dir]]
 
     # parse wsdl
     {model, wsdls} = parse_wsdls([wsdl_file], namespaces, wsdl_model, options, {nil, []})
@@ -99,7 +99,10 @@ defmodule Castile do
         nil -> {acc, imported}
         _ ->
           tns = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
-          prefix = elem(List.keyfind(imports, tns, 0), 1)
+          prefix = case List.keyfind(imports, tns, 0) do
+            {_, p, _} -> p
+            _ -> ''
+          end
           opts = [
             {:prefix, prefix},
             {:include_files, imports},
