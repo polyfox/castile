@@ -6,12 +6,25 @@ defmodule Castile do
 
   defmodule Model do
     @doc """
-    A representation of the WSDL model, containing the type XSD schema and all
+    Represents the WSDL model, containing the type XSD schema and all
     other WSDL metadata.
     """
     defstruct [:operations, :model]
     @type t :: %__MODULE__{operations: map, model: term}
   end
+
+  defmodule Fault do
+    @moduledoc """
+    Represents a SOAP (1.1) fault.
+    """
+
+    defexception [:detail, :faultactor, :faultcode, :faultstring]
+
+    def message(exception) do
+      exception.faultstring
+    end
+  end
+
 
   @doc """
   Initializes a service model from a WSDL file. This parses the WSDL and it's
@@ -325,7 +338,7 @@ defmodule Castile do
       iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
       {:ok, "NL"}
   """
-  @spec call(wsdl :: Model.t, operation :: atom, params :: map, headers :: list | map) :: {:ok, term} | {:error, term}
+  @spec call(wsdl :: Model.t, operation :: atom, params :: map, headers :: list | map) :: {:ok, term} | {:error, %Fault{}} | {:error, term}
   def call(%Model{model: model(types: types)} = model, operation, params \\ %{}, headers \\ []) do
     op = model.operations[to_string(operation)]
     input = resolve_element(op.input, types)
@@ -333,15 +346,30 @@ defmodule Castile do
 
     # http call
     headers = [{"Content-Type", "text/xml; encoding=utf-8"}, {"SOAPAction", op.action} | headers]
-    {:ok, %{status_code: 200, body: body}} = HTTPoison.post(op.address, params, headers)
-    # TODO: check content type for multipart
-    # TODO: handle response headers
-    {:ok, resp, []} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+    case HTTPoison.post(op.address, params, headers) do
+      {:ok, %{status_code: 200, body: body}} ->
+        # TODO: check content type for multipart
+        # TODO: handle response headers
+        {:ok, resp, []} = :erlsom.scan(body, model.model, output_encoding: :utf8)
 
-    output = resolve_element(op.output, types)
-    soap_envelope(body: soap_body(choice: [{^output, _, body}])) = resp
-    # parse body further into a map
-    {:ok, transform(body, types)}
+        output = resolve_element(op.output, types)
+        soap_envelope(body: soap_body(choice: [{^output, _, body}])) = resp
+        # parse body further into a map
+        {:ok, transform(body, types)}
+      {:ok, %{status_code: 500, body: body}} ->
+        {:ok, resp, []} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+        soap_envelope(body: soap_body(choice: [soap_fault() = fault])) = resp
+        {:error, transform(fault, types)}
+    end
+  end
+
+  defp transform(soap_fault() = fault, types) do
+    params = Enum.into(soap_fault(fault), %{}, fn
+      {k, qname() = qname} -> {k, to_string(:erlsom_lib.getUriFromQname(qname))}
+      {k, :undefined} -> {k, nil}
+      {k, v} -> {k, v}
+    end)
+    struct(Fault, params)
   end
 
   defp transform(val, types) when is_tuple(val) do

@@ -13,4 +13,8 @@ defmodule Castile.Erlsom do
   defrecord :alt,  [:tag, :type, :nxt, :mn, :mx, :rl, :anyInfo]
   @doc "XML attribute"
   defrecord :attr, :att, [:name, :nr, :opt, :tp]
+
+  # erlsom internals
+  defrecord :ns, [:uri, :prefix]
+  defrecord :qname, [:uri, :local_part, :prefix, :mapped_prefix]
 end

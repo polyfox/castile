@@ -61,12 +61,12 @@ model = Castile.init_model("BLZService.wsdl")
 
 # TODO
 
+- [X] Faults (1.1)
 - [ ] HTTP client as adapter (specify module)
 - [ ] SOAP 1.2 support
 - [ ] RPC/encoding RPC/literal style (multiple bodies)
 - [ ] WSDL 2.0 support
 - [ ] Attachments/multipart
-- [ ] Faults
 
 # Thanks
 

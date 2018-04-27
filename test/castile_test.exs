@@ -64,5 +64,18 @@ defmodule CastileTest do
 
     test "RATP" do
     end
+
+    test "faults" do
+      use_cassette "europepmc" do
+        path = Path.expand("fixtures/wsdls/europepmc.wsdl", __DIR__)
+        model = Castile.init_model(path)
+        {:error, fault} = Castile.call(model, :searchPublications, %{
+          queryString: "7",
+          resultType: "nonexistent"
+        })
+
+        assert fault == %Castile.Fault{detail: nil, faultactor: nil, faultcode: "http://schemas.xmlsoap.org/soap/envelope/", faultstring: "Cannot find dispatch method for {https://www.europepmc.org/data}searchPublications"}
+      end
+    end
   end
 end
