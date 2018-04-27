@@ -363,6 +363,18 @@ defmodule Castile do
     end
   end
 
+  @doc """
+  Same as call/4, but raises an exception instead.
+  """
+  @spec call!(wsdl :: Model.t, operation :: atom, params :: map, headers :: list | map) :: {:ok, term} | no_return()
+  def call!(%Model{model: model(types: types)} = model, operation, params \\ %{}, headers \\ []) do
+    case call(model, operation, params, headers) do
+      {:ok, result} -> result
+      {:error, %Fault{} = fault} -> raise fault
+      {:error, term} -> raise term
+    end
+  end
+
   defp transform(soap_fault() = fault, types) do
     params = Enum.into(soap_fault(fault), %{}, fn
       {k, qname() = qname} -> {k, to_string(:erlsom_lib.getUriFromQname(qname))}
