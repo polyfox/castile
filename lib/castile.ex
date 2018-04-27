@@ -235,7 +235,7 @@ defmodule Castile do
       :undefined -> local
       nil -> local
       "" -> local
-      _ -> prefix <> ":" <> local
+      _ -> prefix ++ ':' ++ local
     end
     |> List.to_atom()
   end
