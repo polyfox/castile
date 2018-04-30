@@ -53,7 +53,7 @@ defmodule Castile do
     wsdl_model = :erlsom.add_xsd_model(wsdl_model)
 
     include_dir = Path.dirname(wsdl_file)
-    options = [dir_list: [include_dir]]
+    options = [include_dirs: [include_dir]]
 
     # parse wsdl
     {model, wsdls} = parse_wsdls([wsdl_file], namespaces, wsdl_model, options, {nil, []})
@@ -75,7 +75,7 @@ defmodule Castile do
   defp parse_wsdls([], _namespaces, _wsdl_model, _opts, acc), do: acc
 
   defp parse_wsdls([path | rest], namespaces, wsdl_model, opts, {acc_model, acc_wsdl}) do
-    {:ok, wsdl_file} = get_file(String.trim(path))
+    {:ok, wsdl_file} = get_file(String.trim(path), opts)
     {:ok, parsed, _} = :erlsom.scan(wsdl_file, wsdl_model)
     # get xsd elements from wsdl to compile
     xsds = extract_wsdl_xsds(parsed)
@@ -134,13 +134,28 @@ defmodule Castile do
     model
   end
 
-  defp get_file(uri) do
+  defp get_file(uri, opts \\ []) do
     case URI.parse(uri) do
       %{scheme: scheme} when scheme in ["http", "https"] ->
         raise "Not implemented"
         # get_remote_file()
       _ ->
-        File.read(uri)
+        if File.exists?(uri) do
+          File.read(uri)
+        else
+          include = Keyword.get(opts, :include_dirs)
+          find_file(uri, include)
+        end
+    end
+  end
+
+  def find_file(_name, []), do: {:error, :enoent}
+  def find_file(name, [include | rest]) do
+    path = Path.join([include, name])
+    if File.exists?(path) do
+      File.read(path)
+    else
+      find_file(name, rest)
     end
   end
 
