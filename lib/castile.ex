@@ -20,10 +20,19 @@ defmodule Castile do
 
     defexception [:detail, :faultactor, :faultcode, :faultstring]
 
+    @type t :: %__MODULE__{
+      faultcode: String.t,
+      faultstring: String.t,
+      faultactor: String.t,
+      detail: term
+    }
+
     def message(exception) do
       exception.faultstring
     end
   end
+
+  # TODO: valueFun with complex value
 
 
   @doc """
@@ -255,7 +264,7 @@ defmodule Castile do
   defp extract_type(_wsdls, _model, [wsdl_part(element: :undefined)]) do
     raise "Unhandled"
   end
-  defp extract_type(_wsdls, model, [wsdl_part(element: el, name: name)]) do
+  defp extract_type(_wsdls, model, [wsdl_part(element: el)]) do
     local = :erlsom_lib.localName(el)
     uri = :erlsom_lib.getUriFromQname(el)
     prefix = :erlsom_lib.getPrefixFromModel(model, uri)
@@ -279,7 +288,7 @@ defmodule Castile do
       {:ok, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>"}
   """
   @spec convert(Model.t, operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
-  def convert(%Model{model: model(types: types)} = model, nil, params) do
+  def convert(%Model{model: model()} = model, nil, _params) do
     []
     |> wrap_envelope()
     |> :erlsom.write(model.model, output: :binary)
@@ -292,7 +301,7 @@ defmodule Castile do
     |> :erlsom.write(model.model, output: :binary)
   end
 
-  defp resolve_element(nil, types), do: nil
+  defp resolve_element(nil, _types), do: nil
   defp resolve_element(name, types) do
     type(els: [el(alts: alts)]) = List.keyfind(types, :_document, type(:name))
     alts
@@ -359,8 +368,15 @@ defmodule Castile do
     input = resolve_element(op.input, types)
     {:ok, params} = convert(model, input, params)
 
+    IO.inspect params
+
     # http call
-    headers = [{"Content-Type", "text/xml; encoding=utf-8"}, {"SOAPAction", op.action} | headers]
+    headers = [
+      {"Content-Type", "text/xml; encoding=utf-8"},
+      {"SOAPAction", op.action},
+      {"User-Agent", "Castile/0.5.0"}
+    | headers]
+
     case HTTPoison.post(op.address, params, headers) do
       {:ok, %{status_code: 200, body: body}} ->
         # TODO: check content type for multipart
@@ -382,7 +398,7 @@ defmodule Castile do
   Same as call/4, but raises an exception instead.
   """
   @spec call!(wsdl :: Model.t, operation :: atom, params :: map, headers :: list | map) :: {:ok, term} | no_return()
-  def call!(%Model{model: model(types: types)} = model, operation, params \\ %{}, headers \\ []) do
+  def call!(%Model{} = model, operation, params \\ %{}, headers \\ []) do
     case call(model, operation, params, headers) do
       {:ok, result} -> result
       {:error, %Fault{} = fault} -> raise fault
@@ -390,7 +406,7 @@ defmodule Castile do
     end
   end
 
-  defp transform(soap_fault() = fault, types) do
+  defp transform(soap_fault() = fault, _types) do
     params = Enum.into(soap_fault(fault), %{}, fn
       {k, qname() = qname} -> {k, to_string(:erlsom_lib.getUriFromQname(qname))}
       {k, :undefined} -> {k, nil}
@@ -409,7 +425,7 @@ defmodule Castile do
       val = elem(val, pos - 1)
       case t do
         {:"#PRCDATA", _} -> val
-        t -> transform(val, types)
+        _ -> transform(val, types)
       end
       |> case do
         nil -> acc
@@ -418,6 +434,6 @@ defmodule Castile do
     end)
   end
   defp transform(val, types) when is_list(val), do: Enum.map(val, &transform(&1, types))
-  defp transform(:undefined, types), do: nil
-  defp transform(val, types), do: val
+  defp transform(:undefined, _types), do: nil
+  defp transform(val, _types), do: val
 end
