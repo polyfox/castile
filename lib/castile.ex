@@ -56,7 +56,8 @@ defmodule Castile do
     {:ok, wsdl_model} = :erlsom.compile_xsd_file(
       Path.join([priv_dir, "soap.xsd"]),
       prefix: 'soap',
-      include_files: [{'http://schemas.xmlsoap.org/wsdl/', 'wsdl', wsdl}]
+      include_files: [{'http://schemas.xmlsoap.org/wsdl/', 'wsdl', wsdl}],
+      strict: true
     )
     # add the xsd model
     wsdl_model = :erlsom.add_xsd_model(wsdl_model)
@@ -69,7 +70,7 @@ defmodule Castile do
 
     # TODO: add files as required
     # now compile envelope.xsd, and add Model
-    {:ok, envelope_model} = :erlsom.compile_xsd_file(Path.join([priv_dir, "envelope.xsd"]), prefix: 'soap')
+    {:ok, envelope_model} = :erlsom.compile_xsd_file(Path.join([priv_dir, "envelope.xsd"]), prefix: 'soap', strict: true)
     soap_model = :erlsom.add_model(envelope_model, model)
     # TODO: detergent enables you to pass some sort of AddFiles that will stitch together the soap model
     # SoapModel2 = addModels(AddFiles, SoapModel),
@@ -128,7 +129,8 @@ defmodule Castile do
           opts = [
             {:prefix, prefix},
             {:include_files, imports},
-            {:already_imported, imported}
+            {:already_imported, imported},
+            {:strict, true}
             | opts
           ]
           {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, opts)
