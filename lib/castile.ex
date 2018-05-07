@@ -423,7 +423,13 @@ defmodule Castile do
       val = elem(val, pos - 1)
       case t do
         {:"#PRCDATA", _} -> val
-        _ -> transform(val, types)
+        _ ->
+          # HAXX: improve
+          if nillable && val == [] do
+            nil
+          else
+            transform(val, types)
+          end
       end
       |> case do
         nil -> acc
