@@ -17,7 +17,6 @@ defmodule Castile do
     @moduledoc """
     Represents a SOAP (1.1) fault.
     """
-
     defexception [:detail, :faultactor, :faultcode, :faultstring]
 
     @type t :: %__MODULE__{
@@ -32,8 +31,7 @@ defmodule Castile do
     end
   end
 
-  # TODO: valueFun with complex value
-
+  # TODO: erlsom value_fun might save us the trouble of transforms on parse
 
   @doc """
   Initializes a service model from a WSDL file. This parses the WSDL and it's
@@ -68,7 +66,6 @@ defmodule Castile do
     # parse wsdl
     {model, wsdls} = parse_wsdls([wsdl_file], namespaces, wsdl_model, options, {nil, []})
 
-    # TODO: add files as required
     # now compile envelope.xsd, and add Model
     {:ok, envelope_model} = :erlsom.compile_xsd_file(Path.join([priv_dir, "envelope.xsd"]), prefix: 'soap', strict: true)
     soap_model = :erlsom.add_model(envelope_model, model)
@@ -115,7 +112,6 @@ defmodule Castile do
   end
 
   # compile each of the schemas, and add it to the model.
-  # Returns Model
   defp add_schemas(xsds, opts, imports, acc_model \\ nil) do
     {model, _} = Enum.reduce(xsds, {acc_model, []}, fn xsd, {acc, imported} ->
       case xsd do
@@ -176,11 +172,6 @@ defmodule Castile do
     |> List.flatten()
   end
   defp extract_wsdl_xsds(wsdl_definitions()), do: []
-
-  # TODO: soap1.2
-
-  # %% returns [#port{}]
-  # %% -record(port, {service, port, binding, address}).
 
   defp get_ports(wsdls) do
     Enum.reduce(wsdls, [], fn
@@ -251,6 +242,10 @@ defmodule Castile do
     List.keyfind(wsdls, uri, wsdl_definitions(:namespace))
   end
 
+  defp get_type(types, name) when is_list(types) do
+    List.keyfind(types, name, type(:name))
+  end
+
   defp get_imports(wsdl_definitions(imports: :undefined)), do: []
   defp get_imports(wsdl_definitions(imports: imports)) do
     Enum.map(imports, fn wsdl_import(location: location) -> to_string(location) end)
@@ -305,7 +300,8 @@ defmodule Castile do
 
   defp resolve_element(nil, _types), do: nil
   defp resolve_element(name, types) do
-    type(els: [el(alts: alts)]) = List.keyfind(types, :_document, type(:name))
+    type(els: [el(alts: alts)]) = get_type(types, :_document)
+
     alts
     |> List.keyfind(name, alt(:tag))
     |> alt(:type)
@@ -324,13 +320,10 @@ defmodule Castile do
 
   @spec cast_type(name :: atom, input :: map, types :: term) :: tuple
   def cast_type(name, input, types) do
-    spec = List.keyfind(types, name, type(:name))
+    type(els: els) = get_type(types, name)
 
     # TODO: check type(spec, :tp) and handle other things than :sequence
-    vals =
-      spec
-      |> type(:els)
-      |> Enum.map(&convert_el(&1, input, types))
+    vals = Enum.map(els, &convert_el(&1, input, types))
     List.to_tuple([name, [] | vals])
   end
 
@@ -353,8 +346,6 @@ defmodule Castile do
         end
     end
   end
-
-  # ---
 
   @doc """
   Calls a SOAP service operation.
@@ -399,8 +390,7 @@ defmodule Castile do
   def call!(%Model{} = model, operation, params \\ %{}, headers \\ []) do
     case call(model, operation, params, headers) do
       {:ok, result} -> result
-      {:error, %Fault{} = fault} -> raise fault
-      {:error, term} -> raise term
+      {:error, fault} -> raise fault
     end
   end
 
@@ -414,14 +404,12 @@ defmodule Castile do
   end
 
   defp transform(val, types) when is_tuple(val) do
-    spec = List.keyfind(types, elem(val, 0), type(:name))
+    type(els: els) = get_type(types, elem(val, 0))
 
-    spec
-    |> type(:els)
     # TODO if max unbounded, then instead of skipping it, use []
-    |> Enum.reduce(%{}, fn el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: pos), acc ->
+    Enum.reduce(els, %{}, fn el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: pos), acc ->
       val = elem(val, pos - 1)
-      case t do
+      val = case t do
         {:"#PRCDATA", _} -> val
         _ ->
           # HAXX: improve
@@ -431,10 +419,7 @@ defmodule Castile do
             transform(val, types)
           end
       end
-      |> case do
-        nil -> acc
-        val -> Map.put(acc, tag, val)
-      end
+      Map.put(acc, tag, val)
     end)
   end
   defp transform(val, types) when is_list(val), do: Enum.map(val, &transform(&1, types))
