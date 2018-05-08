@@ -31,7 +31,7 @@ defmodule Castile.MixProject do
     [
       # hex version is old and doesn't have write/3 or write related perf
       # improvements
-      {:erlsom, git: "https://github.com/willemdj/erlsom"},
+      {:erlsom, "~> 1.4.2"},
       {:ex_doc, ">= 0.0.0", only: :dev},
       {:httpoison, "~> 0.13 or ~> 1.0"}, #, optional: true},
       {:credo, "~> 0.9.1", only: [:dev, :test], runtime: false},
