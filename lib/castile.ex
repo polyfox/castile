@@ -394,11 +394,11 @@ defmodule Castile do
     end
   end
 
-  defp transform(soap_fault() = fault, _types) do
+  defp transform(soap_fault() = fault, types) do
     params = Enum.into(soap_fault(fault), %{}, fn
       {k, qname() = qname} -> {k, to_string(:erlsom_lib.getUriFromQname(qname))}
       {k, :undefined} -> {k, nil}
-      {k, v} -> {k, v}
+      {k, v} -> {k, transform(v, types)}
     end)
     struct(Fault, params)
   end
@@ -411,6 +411,7 @@ defmodule Castile do
       val = elem(val, pos - 1)
       val = case t do
         {:"#PRCDATA", _} -> val
+        :any -> val # TODO: improve the layout, %{key: %{:"#any" => %{ data }} is a bit redundant if there's only any
         _ ->
           # HAXX: improve
           if nillable && val == [] do
