@@ -113,30 +113,26 @@ defmodule Castile do
 
   # compile each of the schemas, and add it to the model.
   defp add_schemas(xsds, opts, imports, acc_model \\ nil) do
-    {model, _} = Enum.reduce(xsds, {acc_model, []}, fn xsd, {acc, imported} ->
-      case xsd do
-        nil -> {acc, imported}
-        _ ->
-          tns = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
-          prefix = case List.keyfind(imports, tns, 0) do
-            {_, p, _} -> p
-            _ -> ''
-          end
-          opts = [
-            {:prefix, prefix},
-            {:include_files, imports},
-            {:already_imported, imported},
-            {:strict, true}
-            | opts
-          ]
-          {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, opts)
-
-          model = case acc_model do
-            nil ->  model
-            _ -> :erlsom.add_model(acc_model, model)
-          end
-          {model, [{tns, prefix} | imported]}
+    {model, _} = Enum.reduce(Enum.reject(xsds, &is_nil/1), {acc_model, []}, fn xsd, {acc, imported} ->
+      tns = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
+      prefix = case List.keyfind(imports, tns, 0) do
+        {_, p, _} -> p
+        _ -> ''
       end
+      opts = [
+        {:prefix, prefix},
+        {:include_files, imports},
+        {:already_imported, imported},
+        {:strict, true}
+        | opts
+      ]
+      {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, opts)
+
+      model = case acc_model do
+        nil ->  model
+        _ -> :erlsom.add_model(acc, model)
+      end
+      {model, [{tns, prefix} | imported]}
     end)
     model
   end
