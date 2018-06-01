@@ -153,8 +153,8 @@ defmodule Castile do
     end
   end
 
-  def find_file(_name, []), do: {:error, :enoent}
-  def find_file(name, [include | rest]) do
+  defp find_file(_name, []), do: {:error, :enoent}
+  defp find_file(name, [include | rest]) do
     path = Path.join([include, name])
     if File.exists?(path) do
       File.read(path)
