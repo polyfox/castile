@@ -23,15 +23,12 @@ a public API to test against (if you find one, please open an issue!).
 
 ## Installation
 
-(At the moment, installation is possible only from git directly, as Castile uses
-an erlsom version that's more recent than the hex.pm package. As such, I'm
-unable to release an updated version on Hex until that's resolved.)
-
+Install from Hex.pm:
 
 ```elixir
 def deps do
   [
-    {:castile, git: "https://github.com/polyfox/castile"}
+    {:castile, "~> 1.0"}
   ]
 end
 ```
