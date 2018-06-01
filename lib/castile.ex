@@ -72,7 +72,8 @@ defmodule Castile do
     # TODO: detergent enables you to pass some sort of AddFiles that will stitch together the soap model
     # SoapModel2 = addModels(AddFiles, SoapModel),
 
-    # process wsdls
+    # finally, process all wsdls at once (this solves cases where the wsdl
+    # definition is split in to two files, one with types+port types, plus rest)
     ports = get_ports(wsdls)
     operations = get_operations(wsdls, ports, model)
 
@@ -323,7 +324,6 @@ defmodule Castile do
     List.to_tuple([name, [] | vals])
   end
 
-  # TODO: will need to pass through parent type possibly
   defp convert_el(el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: _nr), map, types) do
     case Map.get(map, tag) do
       nil ->
@@ -334,9 +334,8 @@ defmodule Castile do
         end
       val ->
         case t do
-          # val # erlsom will happily accept binaries
           {:"#PCDATA", _} ->
-            val
+            val # erlsom will cast these
           t when is_atom(t) ->
             cast_type(t, val, types)
         end
