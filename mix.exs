@@ -10,7 +10,7 @@ defmodule Castile.MixProject do
       deps: deps(),
       name: "Castile",
       source_url: "https://github.com/polyfox/castile",
-      description: "A SOAP client for Elixir. Code based on Detergent.",
+      description: "Castile is a modern Elixir SOAP API client.",
       package: [
         maintainers: ["Blaž Hrastnik"],
         licenses: ["MIT"],
