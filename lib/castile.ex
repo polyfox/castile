@@ -324,8 +324,8 @@ defmodule Castile do
     List.to_tuple([name, [] | vals])
   end
 
-  defp convert_el(el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: _nr), map, types) do
-    case Map.get(map, tag) do
+  defp convert_el(el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: _nr), value, types) do
+    conv = fn
       nil ->
         cond do
           min == 0          -> :undefined
@@ -339,6 +339,11 @@ defmodule Castile do
           t when is_atom(t) ->
             cast_type(t, val, types)
         end
+    end
+
+    case value do
+      v when is_list(v) -> Enum.map(v, conv)
+      v when is_map(v) -> conv.(Map.get(v, tag))
     end
   end
 
