@@ -342,7 +342,7 @@ defmodule Castile do
     end
 
     case value do
-      v when is_list(v) -> Enum.map(v, conv)
+      v when is_list(v) -> Enum.map(v, fn v -> conv.(Map.get(v, tag)) end)
       v when is_map(v) -> conv.(Map.get(v, tag))
     end
   end
