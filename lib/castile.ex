@@ -370,14 +370,14 @@ defmodule Castile do
       {:ok, %{status_code: 200, body: body}} ->
         # TODO: check content type for multipart
         # TODO: handle response headers
-        {:ok, resp, []} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+        {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
 
         output = resolve_element(op.output, types)
         soap_envelope(body: soap_body(choice: [{^output, _, body}])) = resp
         # parse body further into a map
         {:ok, transform(body, types)}
       {:ok, %{status_code: 500, body: body}} ->
-        {:ok, resp, []} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+        {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
         soap_envelope(body: soap_body(choice: [soap_fault() = fault])) = resp
         {:error, transform(fault, types)}
     end
