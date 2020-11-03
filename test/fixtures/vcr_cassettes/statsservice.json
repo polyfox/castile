@@ -1,0 +1,26 @@
+[
+    {
+      "request": {
+        "body": "<env:Envelope xmlns:env=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><env:Header/><env:Body><setSessionParameters><viewSettings><forceLogoutSession>yes</forceLogoutSession><rollingPeriod>Minutes30</rollingPeriod><shiftStart>28800000</shiftStart><statisticsRange>CurrentWeek</statisticsRange><timeZone>-25200000</timeZone></viewSettings></setSessionParameters></env:Body></env:Envelope>",
+        "headers": {
+          "Content-Type": "text/xml; encoding=utf-8",
+          "SOAPAction": ""
+        },
+        "method": "post",
+        "options": [],
+        "request_body": "",
+        "url": "https://api.toptiersolutions.com:443/wssupervisor/v12/SupervisorWebService"
+      },
+      "response": {
+        "binary": false,
+        "body": "<?xml version='1.0' encoding='UTF-8'?><env:Envelope xmlns:env=\"http://schemas.xmlsoap.org/soap/envelope/\"><env:Header/><env:Body><setSessionParametersResponse></setSessionParametersResponse></env:Body></env:Envelope>",
+        "headers": {
+          "Server": "Apache-Coyote/1.1",
+          "Content-Type": "text/xml;charset=UTF-8",
+          "Date": "Wed, 25 Apr 2018 06:20:45 GMT"
+        },
+        "status_code": 200,
+        "type": "ok"
+      }
+    }
+  ]

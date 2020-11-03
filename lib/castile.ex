@@ -373,9 +373,15 @@ defmodule Castile do
         {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
 
         output = resolve_element(op.output, types)
-        soap_envelope(body: soap_body(choice: [{^output, _, body}])) = resp
-        # parse body further into a map
-        {:ok, transform(body, types)}
+        case resp do
+          soap_envelope(body: soap_body(choice: [{^output, _, inner_body}])) ->
+            # parse body further into a map
+            {:ok, transform(inner_body, types)}
+          soap_envelope(body: soap_body(choice: [{^output, _}])) ->
+            # Response body is empty
+            # skip parsing and return an empty map.
+            {:ok, %{}}
+        end
       {:ok, %{status_code: 500, body: body}} ->
         {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
         soap_envelope(body: soap_body(choice: [soap_fault() = fault])) = resp
