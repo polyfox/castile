@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?><wsdl:definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://service.supervisor.ws.toptiersolutions.com/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="WsSupervisorService" targetNamespace="http://service.supervisor.ws.toptiersolutions.com/">
+  <wsdl:types>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://service.supervisor.ws.toptiersolutions.com/" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="http://service.supervisor.ws.toptiersolutions.com/">
+  <xs:element name="setSessionParameters" type="tns:setSessionParameters"/>
+  <xs:element name="setSessionParametersResponse" type="tns:setSessionParametersResponse"/>
+  <xs:complexType name="setSessionParameters">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="viewSettings" type="tns:viewSettings"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="setSessionParametersResponse">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="viewSettings">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="appType" type="xs:string"/>
+      <xs:element minOccurs="0" name="forceLogoutSession" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="idleTimeOut" type="xs:int"/>
+      <xs:element minOccurs="0" name="rollingPeriod" type="tns:rollingPeriod"/>
+      <xs:element name="shiftStart" type="xs:int"/>
+      <xs:element minOccurs="0" name="statisticsRange" type="tns:statisticsRange"/>
+      <xs:element name="timeZone" type="xs:int"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:simpleType name="rollingPeriod">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Minutes5"/>
+      <xs:enumeration value="Minutes10"/>
+      <xs:enumeration value="Minutes15"/>
+      <xs:enumeration value="Minutes30"/>
+      <xs:enumeration value="Hour1"/>
+      <xs:enumeration value="Hours2"/>
+      <xs:enumeration value="Hours3"/>
+      <xs:enumeration value="Today"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="statisticsRange">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="RollingHour"/>
+      <xs:enumeration value="CurrentDay"/>
+      <xs:enumeration value="CurrentWeek"/>
+      <xs:enumeration value="CurrentMonth"/>
+      <xs:enumeration value="Lifetime"/>
+      <xs:enumeration value="CurrentShift"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="UserAlreadyLoggedInFault" type="tns:UserAlreadyLoggedInFault"/>
+  <xs:complexType name="UserAlreadyLoggedInFault">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="message" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
+  </wsdl:types>
+  <wsdl:message name="setSessionParameters">
+    <wsdl:part element="tns:setSessionParameters" name="parameters"> </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="setSessionParametersResponse">
+    <wsdl:part element="tns:setSessionParametersResponse" name="parameters"> </wsdl:part>
+  </wsdl:message>
+  <wsdl:portType name="WsSupervisor">
+    <wsdl:documentation>Just another SOAP WSDL to test an empty response element. Cool, huh?</wsdl:documentation>
+    <wsdl:operation name="setSessionParameters">
+      <wsdl:input message="tns:setSessionParameters" name="setSessionParameters">
+    </wsdl:input>
+      <wsdl:output message="tns:setSessionParametersResponse" name="setSessionParametersResponse">
+    </wsdl:output>
+      <wsdl:fault message="tns:UserAlreadyLoggedInException" name="UserAlreadyLoggedInException">
+    </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="WsSupervisorServiceSoapBinding" type="tns:WsSupervisor">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="setSessionParameters">
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input name="setSessionParameters">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="setSessionParametersResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="UserAlreadyLoggedInException">
+        <soap:fault name="UserAlreadyLoggedInException" use="literal"/>
+      </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="WsSupervisorService">
+    <wsdl:port binding="tns:WsSupervisorServiceSoapBinding" name="WsSupervisorPort">
+      <soap:address location="https://api.toptiersolutions.com:443/wssupervisor/v12/SupervisorWebService"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

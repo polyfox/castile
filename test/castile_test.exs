@@ -62,6 +62,23 @@ defmodule CastileTest do
       end
     end
 
+    test "StatsService" do
+      use_cassette "StatsService" do
+        params = %{
+          viewSettings: %{
+            rollingPeriod: "Minutes30",
+            shiftStart: 28_800_000,
+            statisticsRange: "CurrentWeek",
+            timeZone: -25_200_000
+          }
+        }
+
+        path = Path.expand("fixtures/wsdls/StatsService.wsdl", __DIR__)
+        model = Castile.init_model(path)
+        assert {:ok, %{}} = Castile.call(model, :setSessionParameters, params)
+      end
+    end
+
     test "RATP" do
     end
 
