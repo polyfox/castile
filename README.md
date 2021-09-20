@@ -1,5 +1,11 @@
 # Castile VIU Fork
 
+# TODO VIU - LS eCommerce
+
+- [ ] Transform types the correct way: now = `:"P:Login"` expected: `:login`
+- [ ] Create a correct envelop
+- [ ] ...
+
 Castile is a modern Elixir SOAP API client.
 It borrows ideas heavily from [Detergent](https://github.com/devinus/detergent)/yaws.
 
@@ -41,10 +47,6 @@ Docs can be found at [https://hexdocs.pm/castile](https://hexdocs.pm/castile).
 # It's recommended to do init_model at compile time, as an @attr
 @model = Castile.init_model("CountryInfoService.wsdl")
 
-# we take maps as input and return binaries
-{:ok, resp} = Castile.call(@model, :CountryISOCode, %{sCountryName: "Netherlands"})
-# "NL"
-
 # More complex results get cast into maps:
 model = Castile.init_model("BLZService.wsdl")
 {:ok, resp} = Castile.call(model, :getBank, %{blz: "70070010"})
@@ -54,6 +56,24 @@ model = Castile.init_model("BLZService.wsdl")
 #   ort: "München",
 #   plz: "80271"
 # }
+```
+
+## LS eCommerce SOAP
+
+**Envelope**
+
+Looks like:
+```xml
+      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service">
+        <soapenv:Header/>
+        <soapenv:Body>
+            <ser:Login>
+              <ser:userName>tom</ser:userName>
+              <ser:password>tom.1</ser:password>
+              <ser:deviceId></ser:deviceId>
+            </ser:Login>
+        </soapenv:Body>
+      </soapenv:Envelope>
 ```
 
 # TODO
