@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema elementFormDefault="qualified" targetNamespace="http://lsretail.com/LSOmniService/Loy/2021" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://lsretail.com/LSOmniService/Loy/2021">
+  <xs:import schemaLocation="test/fixtures/wsdls/soap_ui_export/UCService_2.xsd" namespace="http://lsretail.com/LSOmniService/Base/2021"/>
+  <xs:complexType name="ReplValidationScheduleResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="LastKey" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="MaxKey" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="RecordsRemaining" type="xs:int"/>
+      <xs:element minOccurs="0" name="Schedules" nillable="true" type="tns:ArrayOfReplValidationSchedule"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ReplValidationScheduleResponse" nillable="true" type="tns:ReplValidationScheduleResponse"/>
+  <xs:complexType name="ArrayOfReplValidationSchedule">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="ReplValidationSchedule" nillable="true" type="tns:ReplValidationSchedule"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ArrayOfReplValidationSchedule" nillable="true" type="tns:ArrayOfReplValidationSchedule"/>
+  <xs:complexType name="ReplValidationSchedule">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="Description" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="Id" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="IsDeleted" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="Lines" nillable="true" type="tns:ArrayOfValidationScheduleLine"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ReplValidationSchedule" nillable="true" type="tns:ReplValidationSchedule"/>
+  <xs:complexType name="ArrayOfValidationScheduleLine">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="ValidationScheduleLine" nillable="true" type="tns:ValidationScheduleLine"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ArrayOfValidationScheduleLine" nillable="true" type="tns:ArrayOfValidationScheduleLine"/>
+  <xs:complexType name="ValidationScheduleLine">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="Comment" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="DateSchedule" nillable="true" type="tns:VSDateSchedule"/>
+      <xs:element minOccurs="0" name="Description" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="LineNo" type="xs:int"/>
+      <xs:element minOccurs="0" name="Priority" type="xs:int"/>
+      <xs:element minOccurs="0" name="TimeSchedule" nillable="true" type="tns:VSTimeSchedule"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ValidationScheduleLine" nillable="true" type="tns:ValidationScheduleLine"/>
+  <xs:complexType name="VSDateSchedule">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="Description" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="Fridays" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="Id" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="Lines" nillable="true" type="tns:ArrayOfVSDateScheduleLine"/>
+      <xs:element minOccurs="0" name="Mondays" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="Saturdays" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="Sundays" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="Thursdays" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="Tuesdays" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="ValidAllWeekdays" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="Wednesdays" type="xs:boolean"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="VSDateSchedule" nillable="true" type="tns:VSDateSchedule"/>
+  <xs:complexType name="ArrayOfVSDateScheduleLine">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="VSDateScheduleLine" nillable="true" type="tns:VSDateScheduleLine"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ArrayOfVSDateScheduleLine" nillable="true" type="tns:ArrayOfVSDateScheduleLine"/>
+  <xs:complexType name="VSDateScheduleLine">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="EndingDate" type="xs:dateTime"/>
+      <xs:element minOccurs="0" name="Exclude" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="LineNo" type="xs:int"/>
+      <xs:element minOccurs="0" name="StartingDate" type="xs:dateTime"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="VSDateScheduleLine" nillable="true" type="tns:VSDateScheduleLine"/>
+  <xs:complexType name="VSTimeSchedule">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="Description" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="Id" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="Lines" nillable="true" type="tns:ArrayOfVSTimeScheduleLine"/>
+      <xs:element minOccurs="0" name="Type" type="q1:VSTimeScheduleType" xmlns:q1="http://lsretail.com/LSOmniService/Base/2021"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="VSTimeSchedule" nillable="true" type="tns:VSTimeSchedule"/>
+  <xs:complexType name="ArrayOfVSTimeScheduleLine">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="VSTimeScheduleLine" nillable="true" type="tns:VSTimeScheduleLine"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ArrayOfVSTimeScheduleLine" nillable="true" type="tns:ArrayOfVSTimeScheduleLine"/>
+  <xs:complexType name="VSTimeScheduleLine">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="DiningDurationCode" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="Period" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="ReservationInterval" type="xs:int"/>
+      <xs:element minOccurs="0" name="SelectedByDefault" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="TimeFrom" type="xs:dateTime"/>
+      <xs:element minOccurs="0" name="TimeTo" type="xs:dateTime"/>
+      <xs:element minOccurs="0" name="TimeToIsPastMidnight" type="xs:boolean"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="VSTimeScheduleLine" nillable="true" type="tns:VSTimeScheduleLine"/>
+  <xs:complexType name="ArrayOfRecommendedItem">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="RecommendedItem" nillable="true" type="tns:RecommendedItem"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ArrayOfRecommendedItem" nillable="true" type="tns:ArrayOfRecommendedItem"/>
+  <xs:complexType name="RecommendedItem">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="itemNo" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="lift" type="xs:decimal"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="RecommendedItem" nillable="true" type="tns:RecommendedItem"/>
+</xs:schema>

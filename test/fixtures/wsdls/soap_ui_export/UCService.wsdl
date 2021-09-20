@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions targetNamespace="http://lsretail.com/LSOmniService/EComm/2017/Service"
+  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+  xmlns:wsx="http://schemas.xmlsoap.org/ws/2004/09/mex"
+  xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+  xmlns:wsa10="http://www.w3.org/2005/08/addressing"
+  xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy"
+  xmlns:wsap="http://schemas.xmlsoap.org/ws/2004/08/addressing/policy"
+  xmlns:msc="http://schemas.microsoft.com/ws/2005/12/wsdl/contract"
+  xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+  xmlns:wsa="http://schemas.xmlsoap.org/ws/2004/08/addressing"
+  xmlns:wsam="http://www.w3.org/2007/05/addressing/metadata"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:tns="http://lsretail.com/LSOmniService/EComm/2017/Service"
+  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+  xmlns:wsaw="http://www.w3.org/2006/05/addressing/wsdl"
+  xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/">
+  <wsdl:types>
+    <xsd:schema targetNamespace="http://lsretail.com/LSOmniService/EComm/2017/Service/Imports">
+      <xsd:import schemaLocation="test/fixtures/wsdls/soap_ui_export/UCService.xsd" namespace="http://lsretail.com/LSOmniService/EComm/2017/Service"/>
+      <xsd:import schemaLocation="test/fixtures/wsdls/soap_ui_export/UCService_2.xsd" namespace="http://lsretail.com/LSOmniService/Base/2021"/>
+      <xsd:import schemaLocation="test/fixtures/wsdls/soap_ui_export/UCService_3.xsd" namespace="http://lsretail.com/LSOmniService/Loy/2021"/>
+    </xsd:schema>
+  </wsdl:types>
+  <wsdl:message name="IUCService_Login_InputMessage">
+    <wsdl:part name="parameters" element="tns:Login"/>
+  </wsdl:message>
+  <wsdl:message name="IUCService_Login_OutputMessage">
+    <wsdl:part name="parameters" element="tns:LoginResponse"/>
+  </wsdl:message>
+  <wsdl:portType name="BasicHttpBinding_IUCService">
+    <wsdl:operation name="Login">
+      <wsdl:input wsaw:Action="http://lsretail.com/LSOmniService/EComm/2017/Service/IUCService/Login" message="tns:IUCService_Login_InputMessage"/>
+      <wsdl:output wsaw:Action="http://lsretail.com/LSOmniService/EComm/2017/Service/IUCService/LoginResponse" message="tns:IUCService_Login_OutputMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="BasicHttpBinding_IUCService" type="tns:BasicHttpBinding_IUCService">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="Login">
+      <soap:operation soapAction="http://lsretail.com/LSOmniService/EComm/2017/Service/IUCService/Login" style="document"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="UCService">
+    <wsdl:port name="BasicHttpBinding_IUCService" binding="tns:BasicHttpBinding_IUCService">
+      <soap:address location="http://localhost/LSCommerceService/UCService.svc"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

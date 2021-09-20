@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema elementFormDefault="qualified" targetNamespace="http://lsretail.com/LSOmniService/Base/2021" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://lsretail.com/LSOmniService/Base/2021">
+  <xs:complexType name="ArrayOfHospAvailabilityRequest">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="HospAvailabilityRequest" nillable="true" type="tns:HospAvailabilityRequest"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ArrayOfHospAvailabilityRequest" nillable="true" type="tns:ArrayOfHospAvailabilityRequest"/>
+  <xs:complexType name="HospAvailabilityRequest">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="ItemId" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="UnitOfMeasure" nillable="true" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="HospAvailabilityRequest" nillable="true" type="tns:HospAvailabilityRequest"/>
+  <xs:complexType name="ArrayOfHospAvailabilityResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="HospAvailabilityResponse" nillable="true" type="tns:HospAvailabilityResponse"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ArrayOfHospAvailabilityResponse" nillable="true" type="tns:ArrayOfHospAvailabilityResponse"/>
+  <xs:complexType name="HospAvailabilityResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="IsDeal" type="xs:boolean"/>
+      <xs:element minOccurs="0" name="Number" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="Quantity" type="xs:decimal"/>
+      <xs:element minOccurs="0" name="StoreId" nillable="true" type="xs:string"/>
+      <xs:element minOccurs="0" name="UnitOfMeasure" nillable="true" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="HospAvailabilityResponse" nillable="true" type="tns:HospAvailabilityResponse"/>
+  <xs:simpleType name="VSTimeScheduleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="NotSpecified"/>
+      <xs:enumeration value="DiningHours"/>
+      <xs:enumeration value="ValidationSchedule"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="VSTimeScheduleType" nillable="true" type="tns:VSTimeScheduleType"/>
+</xs:schema>
