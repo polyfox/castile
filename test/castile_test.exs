@@ -30,11 +30,11 @@ defmodule CastileTest do
 
     {:ok, xml} =
       Castile.convert(model, :"P:Login", %{
-        userName: "John",
-        pasword: "1234"
+        "P:userName": "John",
+        "P:password": "1234"
       })
 
     assert xml ==
-             ~s(<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><P:Login xmlns:P=\"http://lsretail.com/LSOmniService/Loy/2021\"><userName>john</userName><password>1234</password></P:Login></soap:Body></soap:Envelope>)
+             ~s(<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><P:Login xmlns:P=\"http://lsretail.com/LSOmniService/Loy/2021\"><P:userName>John</P:userName><P:password>1234</P:password></P:Login></soap:Body></soap:Envelope>)
   end
 end
