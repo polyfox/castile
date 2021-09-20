@@ -33,7 +33,6 @@ defmodule Castile.MixProject do
       # improvements
       {:erlsom, "~> 1.4.2"},
       {:ex_doc, ">= 0.0.0", only: :dev},
-      {:httpoison, "~> 0.13 or ~> 1.0"}, #, optional: true},
       {:credo, "~> 0.9.1", only: [:dev, :test], runtime: false},
       {:exvcr, "~> 0.10", only: :test}
     ]

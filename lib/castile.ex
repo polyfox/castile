@@ -355,81 +355,72 @@ defmodule Castile do
       iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
       {:ok, "NL"}
   """
-  @spec call(wsdl :: Model.t, operation :: atom, params :: map, headers :: list | map, opts :: list) :: {:ok, term} | {:error, %Fault{}} | {:error, term}
-  def call(%Model{model: model(types: types)} = model, operation, params \\ %{}, headers \\ [], opts \\ []) do
+  @spec call(wsdl :: Model.t, operation :: atom, params :: map) :: map
+  def call(%Model{model: model(types: types)} = model, operation, params \\ %{}) do
     op = model.operations[to_string(operation)]
     input = resolve_element(op.input, types)
     {:ok, params} = convert(model, input, params)
 
-    headers = [
-      {"Content-Type", "text/xml; encoding=utf-8"},
-      {"SOAPAction", op.action},
-      {"User-Agent", "Castile/0.5.0"} | headers]
+    %{action: op.action, params: params}
 
-    case HTTPoison.post(op.address, params, headers, opts) do
-      {:ok, %{status_code: 200, body: body}} ->
-        # TODO: check content type for multipart
-        # TODO: handle response headers
-        {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+    # headers = [
+    #   {"Content-Type", "text/xml; encoding=utf-8"},
+    #   {"SOAPAction", op.action},
+    #   {"User-Agent", "Castile/0.5.0"} | headers]
 
-        output = resolve_element(op.output, types)
-        case resp do
-          soap_envelope(body: soap_body(choice: [{^output, _, inner_body}])) ->
-            # parse body further into a map
-            {:ok, transform(inner_body, types)}
-          soap_envelope(body: soap_body(choice: [{^output, _}])) ->
-            # Response body is empty
-            # skip parsing and return an empty map.
-            {:ok, %{}}
-        end
-      {:ok, %{status_code: 500, body: body}} ->
-        {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
-        soap_envelope(body: soap_body(choice: [soap_fault() = fault])) = resp
-        {:error, transform(fault, types)}
-    end
+    # case HTTPoison.post(op.address, params, headers, opts) do
+    #   {:ok, %{status_code: 200, body: body}} ->
+    #     # TODO: check content type for multipart
+    #     # TODO: handle response headers
+    #     {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+
+    #     output = resolve_element(op.output, types)
+    #     case resp do
+    #       soap_envelope(body: soap_body(choice: [{^output, _, inner_body}])) ->
+    #         # parse body further into a map
+    #         {:ok, transform(inner_body, types)}
+    #       soap_envelope(body: soap_body(choice: [{^output, _}])) ->
+    #         # Response body is empty
+    #         # skip parsing and return an empty map.
+    #         {:ok, %{}}
+    #     end
+    #   {:ok, %{status_code: 500, body: body}} ->
+    #     {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+    #     soap_envelope(body: soap_body(choice: [soap_fault() = fault])) = resp
+    #     {:error, transform(fault, types)}
+    # end
   end
 
-  @doc """
-  Same as call/4, but raises an exception instead.
-  """
-  @spec call!(wsdl :: Model.t, operation :: atom, params :: map, headers :: list | map) :: {:ok, term} | no_return()
-  def call!(%Model{} = model, operation, params \\ %{}, headers \\ []) do
-    case call(model, operation, params, headers) do
-      {:ok, result} -> result
-      {:error, fault} -> raise fault
-    end
-  end
+  # defp transform(soap_fault() = fault, types) do
+  #   params = Enum.into(soap_fault(fault), %{}, fn
+  #     {k, qname() = qname} -> {k, to_string(:erlsom_lib.getUriFromQname(qname))}
+  #     {k, :undefined} -> {k, nil}
+  #     {k, v} -> {k, transform(v, types)}
+  #   end)
+  #   struct(Fault, params)
+  # end
 
-  defp transform(soap_fault() = fault, types) do
-    params = Enum.into(soap_fault(fault), %{}, fn
-      {k, qname() = qname} -> {k, to_string(:erlsom_lib.getUriFromQname(qname))}
-      {k, :undefined} -> {k, nil}
-      {k, v} -> {k, transform(v, types)}
-    end)
-    struct(Fault, params)
-  end
+  # defp transform(val, types) when is_tuple(val) do
+  #   type(els: els) = get_type(types, elem(val, 0))
 
-  defp transform(val, types) when is_tuple(val) do
-    type(els: els) = get_type(types, elem(val, 0))
-
-    # TODO if max unbounded, then instead of skipping it, use []
-    Enum.reduce(els, %{}, fn el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: pos), acc ->
-      val = elem(val, pos - 1)
-      val = case t do
-        {:"#PRCDATA", _} -> val
-        :any -> val # TODO: improve the layout, %{key: %{:"#any" => %{ data }} is a bit redundant if there's only any
-        _ ->
-          # HAXX: improve
-          if nillable && val == [] do
-            nil
-          else
-            transform(val, types)
-          end
-      end
-      Map.put(acc, tag, val)
-    end)
-  end
-  defp transform(val, types) when is_list(val), do: Enum.map(val, &transform(&1, types))
-  defp transform(:undefined, _types), do: nil
-  defp transform(val, _types), do: val
+  #   # TODO if max unbounded, then instead of skipping it, use []
+  #   Enum.reduce(els, %{}, fn el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: pos), acc ->
+  #     val = elem(val, pos - 1)
+  #     val = case t do
+  #       {:"#PRCDATA", _} -> val
+  #       :any -> val # TODO: improve the layout, %{key: %{:"#any" => %{ data }} is a bit redundant if there's only any
+  #       _ ->
+  #         # HAXX: improve
+  #         if nillable && val == [] do
+  #           nil
+  #         else
+  #           transform(val, types)
+  #         end
+  #     end
+  #     Map.put(acc, tag, val)
+  #   end)
+  # end
+  # defp transform(val, types) when is_list(val), do: Enum.map(val, &transform(&1, types))
+  # defp transform(:undefined, _types), do: nil
+  # defp transform(val, _types), do: val
 end
