@@ -20,11 +20,11 @@ defmodule Castile do
     defexception [:detail, :faultactor, :faultcode, :faultstring]
 
     @type t :: %__MODULE__{
-      faultcode: String.t,
-      faultstring: String.t,
-      faultactor: String.t,
-      detail: term
-    }
+            faultcode: String.t(),
+            faultstring: String.t(),
+            faultactor: String.t(),
+            detail: term
+          }
 
     def message(exception) do
       exception.faultstring
@@ -47,16 +47,19 @@ defmodule Castile do
       %Castile.Model{...}
   """
   # TODO: take namespaces as binary
-  @spec init_model(Path.t, namespaces :: list) :: Model.t
+  @spec init_model(Path.t(), namespaces :: list) :: Model.t()
   def init_model(wsdl_file, namespaces \\ []) do
     priv_dir = Application.app_dir(:castile, "priv")
     wsdl = Path.join([priv_dir, "wsdl.xsd"])
-    {:ok, wsdl_model} = :erlsom.compile_xsd_file(
-      Path.join([priv_dir, "soap.xsd"]),
-      prefix: 'soap',
-      include_files: [{'http://schemas.xmlsoap.org/wsdl/', 'wsdl', wsdl}],
-      strict: true
-    )
+
+    {:ok, wsdl_model} =
+      :erlsom.compile_xsd_file(
+        Path.join([priv_dir, "soap.xsd"]),
+        prefix: 'soap',
+        include_files: [{'http://schemas.xmlsoap.org/wsdl/', 'wsdl', wsdl}],
+        strict: true
+      )
+
     # add the xsd model
     wsdl_model = :erlsom.add_xsd_model(wsdl_model)
 
@@ -67,8 +70,11 @@ defmodule Castile do
     {model, wsdls} = parse_wsdls([wsdl_file], namespaces, wsdl_model, options, {nil, []})
 
     # now compile envelope.xsd, and add Model
-    {:ok, envelope_model} = :erlsom.compile_xsd_file(Path.join([priv_dir, "envelope.xsd"]), prefix: 'soap', strict: true)
+    {:ok, envelope_model} =
+      :erlsom.compile_xsd_file(Path.join([priv_dir, "envelope.xsd"]), prefix: 'soap', strict: true)
+
     soap_model = :erlsom.add_model(envelope_model, model)
+
     # TODO: detergent enables you to pass some sort of AddFiles that will stitch together the soap model
     # SoapModel2 = addModels(AddFiles, SoapModel),
 
@@ -90,15 +96,19 @@ defmodule Castile do
     # Now we need to build a list: [{Namespace, Prefix, Xsd}, ...] for all the Xsds in the WSDL.
     # This list is used when a schema includes one of the other schemas. The AXIS java2wsdl
     # generates wsdls that depend on this feature.
-    import_list = Enum.reduce(xsds, [], fn xsd, acc ->
-      uri = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
-      case uri do
-        :undefined -> acc
-        _ ->
-          prefix = :proplists.get_value(uri, namespaces, :undefined)
-          [{uri, prefix, xsd} | acc]
-      end
-    end)
+    import_list =
+      Enum.reduce(xsds, [], fn xsd, acc ->
+        uri = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
+
+        case uri do
+          :undefined ->
+            acc
+
+          _ ->
+            prefix = :proplists.get_value(uri, namespaces, :undefined)
+            [{uri, prefix, xsd} | acc]
+        end
+      end)
 
     model = add_schemas(xsds, opts, import_list, acc_model)
 
@@ -114,27 +124,35 @@ defmodule Castile do
 
   # compile each of the schemas, and add it to the model.
   defp add_schemas(xsds, opts, imports, acc_model \\ nil) do
-    {model, _} = Enum.reduce(Enum.reject(xsds, &is_nil/1), {acc_model, []}, fn xsd, {acc, imported} ->
-      tns = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
-      prefix = case List.keyfind(imports, tns, 0) do
-        {_, p, _} -> p
-        _ -> ''
-      end
-      opts = [
-        {:prefix, prefix},
-        {:include_files, imports},
-        {:already_imported, imported},
-        {:strict, true}
-        | opts
-      ]
-      {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, opts)
+    {model, _} =
+      Enum.reduce(Enum.reject(xsds, &is_nil/1), {acc_model, []}, fn xsd, {acc, imported} ->
+        tns = :erlsom_lib.getTargetNamespaceFromXsd(xsd)
 
-      model = case acc_model do
-        nil ->  model
-        _ -> :erlsom.add_model(acc, model)
-      end
-      {model, [{tns, prefix} | imported]}
-    end)
+        prefix =
+          case List.keyfind(imports, tns, 0) do
+            {_, p, _} -> p
+            _ -> ''
+          end
+
+        opts = [
+          {:prefix, prefix},
+          {:include_files, imports},
+          {:already_imported, imported},
+          {:strict, true}
+          | opts
+        ]
+
+        {:ok, model} = :erlsom_compile.compile_parsed_xsd(xsd, opts)
+
+        model =
+          case acc_model do
+            nil -> model
+            _ -> :erlsom.add_model(acc, model)
+          end
+
+        {model, [{tns, prefix} | imported]}
+      end)
+
     model
   end
 
@@ -142,7 +160,8 @@ defmodule Castile do
     case URI.parse(uri) do
       %{scheme: scheme} when scheme in ["http", "https"] ->
         raise "Not implemented"
-        # get_remote_file()
+
+      # get_remote_file()
       _ ->
         if File.exists?(uri) do
           File.read(uri)
@@ -154,8 +173,10 @@ defmodule Castile do
   end
 
   defp find_file(_name, []), do: {:error, :enoent}
+
   defp find_file(name, [include | rest]) do
     path = Path.join([include, name])
+
     if File.exists?(path) do
       File.read(path)
     else
@@ -168,11 +189,12 @@ defmodule Castile do
     |> Enum.map(fn {:"wsdl:tTypes", _attrs, _docs, types} -> types end)
     |> List.flatten()
   end
+
   defp extract_wsdl_xsds(wsdl_definitions()), do: []
 
   defp get_ports(wsdls) do
     Enum.reduce(wsdls, [], fn
-      (wsdl_definitions(services: services), acc) when is_list(services) ->
+      wsdl_definitions(services: services), acc when is_list(services) ->
         Enum.reduce(services, acc, fn service, acc ->
           wsdl_service(name: service_name, ports: ports) = service
           # TODO: ensure ports not :undefined
@@ -180,19 +202,34 @@ defmodule Castile do
             wsdl_port(name: name, binding: binding, choice: choice), acc when is_list(choice) ->
               Enum.reduce(choice, acc, fn
                 soap_address(location: location), acc ->
-                  [%{service: to_string(service_name), port: to_string(name), binding: binding, address: to_string(location)} | acc]
-                _, acc -> acc # non-soap bindings are ignored
+                  [
+                    %{
+                      service: to_string(service_name),
+                      port: to_string(name),
+                      binding: binding,
+                      address: to_string(location)
+                    }
+                    | acc
+                  ]
+
+                # non-soap bindings are ignored
+                _, acc ->
+                  acc
               end)
-              _, acc -> acc
+
+            _, acc ->
+              acc
           end)
         end)
-      _, acc -> acc
+
+      _, acc ->
+        acc
     end)
   end
 
   # TODO: having to say pos outside of the func is nasty but meh.
   defp get_node(wsdls, qname, type_pos, pos) do
-    uri   = :erlsom_lib.getUriFromQname(qname)
+    uri = :erlsom_lib.getUriFromQname(qname)
     local = :erlsom_lib.localName(qname)
 
     wsdls
@@ -204,11 +241,11 @@ defmodule Castile do
   # get service -> port --> binding --> portType -> operation -> response-or-one-way -> param -|-|-> message
   #                     |-> bindingOperation --> message
   defp get_operations(wsdls, ports, model) do
-    Enum.reduce(ports, %{}, fn (%{binding: binding} = port, acc) ->
+    Enum.reduce(ports, %{}, fn %{binding: binding} = port, acc ->
       bind = get_node(wsdls, binding, wsdl_definitions(:bindings), wsdl_binding(:name))
       wsdl_binding(ops: ops, type: pt) = bind
 
-      Enum.reduce(ops, acc, fn (wsdl_binding_operation(name: name, choice: choice), acc) ->
+      Enum.reduce(ops, acc, fn wsdl_binding_operation(name: name, choice: choice), acc ->
         case choice do
           [soap_operation(action: action)] ->
             # lookup Binding in PortType, and create a combined result
@@ -226,10 +263,12 @@ defmodule Castile do
               address: port.address,
               action: to_string(action),
               input: extract_type(wsdls, model, input),
-              output: extract_type(wsdls, model, output),
-              #fault: extract_type(wsdls, model, fault) TODO
+              output: extract_type(wsdls, model, output)
+              # fault: extract_type(wsdls, model, fault) TODO
             })
-          _ ->  acc
+
+          _ ->
+            acc
         end
       end)
     end)
@@ -244,6 +283,7 @@ defmodule Castile do
   end
 
   defp get_imports(wsdl_definitions(imports: :undefined)), do: []
+
   defp get_imports(wsdl_definitions(imports: imports)) do
     Enum.map(imports, fn wsdl_import(location: location) -> to_string(location) end)
   end
@@ -253,15 +293,19 @@ defmodule Castile do
       wsdls
       |> get_node(message, wsdl_definitions(:messages), wsdl_message(:name))
       |> wsdl_message(:part)
+
     extract_type(wsdls, model, parts)
   end
+
   defp extract_type(_wsdls, _model, [wsdl_part(element: :undefined)]) do
     raise "Unhandled"
   end
+
   defp extract_type(_wsdls, model, [wsdl_part(element: el)]) do
     local = :erlsom_lib.localName(el)
     uri = :erlsom_lib.getUriFromQname(el)
     prefix = :erlsom_lib.getPrefixFromModel(model, uri)
+
     case prefix do
       :undefined -> local
       nil -> local
@@ -270,6 +314,7 @@ defmodule Castile do
     end
     |> List.to_atom()
   end
+
   defp extract_type(_, _, nil), do: nil
   defp extract_type(_, _, :undefined), do: nil
 
@@ -281,12 +326,13 @@ defmodule Castile do
       iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
       {:ok, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>"}
   """
-  @spec convert(Model.t, operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
+  @spec convert(Model.t(), operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
   def convert(%Model{model: model()} = model, nil, _params) do
     []
     |> wrap_envelope()
     |> :erlsom.write(model.model, output: :binary)
   end
+
   def convert(%Model{model: model(types: types)} = model, type, params) do
     type
     |> cast_type(params, types)
@@ -296,6 +342,7 @@ defmodule Castile do
   end
 
   defp resolve_element(nil, _types), do: nil
+
   defp resolve_element(name, types) do
     type(els: [el(alts: alts)]) = get_type(types, :_document)
 
@@ -324,18 +371,31 @@ defmodule Castile do
     List.to_tuple([name, [] | vals])
   end
 
-  defp convert_el(el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: _nr), value, types) do
+  defp convert_el(
+         el(
+           alts: [alt(tag: tag, type: t, mn: 1, mx: 1)],
+           mn: min,
+           mx: max,
+           nillable: nillable,
+           nr: _nr
+         ),
+         value,
+         types
+       ) do
     conv = fn
       nil ->
         cond do
-          min == 0          -> :undefined
-          nillable == true  -> nil
-          true              -> raise "Non-nillable type #{tag} found nil"
+          min == 0 -> :undefined
+          nillable == true -> nil
+          true -> raise "Non-nillable type #{tag} found nil"
         end
+
       val ->
         case t do
           {:"#PCDATA", _} ->
-            val # erlsom will cast these
+            # erlsom will cast these
+            val
+
           t when is_atom(t) ->
             cast_type(t, val, types)
         end
