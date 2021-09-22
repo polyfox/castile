@@ -4,14 +4,7 @@ defmodule Castile do
   """
   import Castile.Records.{Erlsom, WSDL, SOAP}
 
-  defmodule Model do
-    @doc """
-    Represents the WSDL model, containing the type XSD schema and all
-    other WSDL metadata.
-    """
-    defstruct [:operations, :model]
-    @type t :: %__MODULE__{operations: map, model: term}
-  end
+  alias Castile.Model
 
   defmodule Fault do
     @moduledoc """
