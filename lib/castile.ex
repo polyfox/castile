@@ -2,7 +2,7 @@ defmodule Castile do
   @moduledoc """
   Documentation for Castile.
   """
-  import Castile.{Erlsom, WSDL, SOAP}
+  import Castile.Records.{Erlsom, WSDL, SOAP}
 
   defmodule Model do
     @doc """
@@ -84,6 +84,21 @@ defmodule Castile do
     operations = get_operations(wsdls, ports, model)
 
     %Model{operations: operations, model: soap_model}
+  end
+
+  def parse(%Model{model: model(types: types)} = model, operation, body) do
+    op = model.operations[to_string(operation)]
+    {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
+    output = resolve_element(op.output, types)
+    case resp do
+      soap_envelope(body: soap_body(choice: [{^output, _, inner_body}])) ->
+        # parse body further into a map
+        {:ok, transform(inner_body, types)}
+      soap_envelope(body: soap_body(choice: [{^output, _}])) ->
+        # Response body is empty
+        # skip parsing and return an empty map.
+        {:ok, %{}}
+    end
   end
 
   defp parse_wsdls([], _namespaces, _wsdl_model, _opts, acc), do: acc
@@ -326,15 +341,10 @@ defmodule Castile do
       iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
       {:ok, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>"}
   """
-  @spec convert(Model.t(), operation :: atom, params :: map) :: {:ok, binary} | {:error, term}
-  def convert(%Model{model: model()} = model, nil, _params) do
-    []
-    |> wrap_envelope()
-    |> :erlsom.write(model.model, output: :binary)
-  end
-
-  def convert(%Model{model: model(types: types)} = model, type, params) do
-    type
+  def convert(%Model{model: model(types: types)} = model, operation, params \\ %{}) do
+    model.operations[to_string(operation)]
+    |> Map.get(:input)
+    |> resolve_element(types)
     |> cast_type(params, types)
     |> List.wrap()
     |> wrap_envelope()
@@ -406,4 +416,37 @@ defmodule Castile do
       v when is_map(v) -> conv.(Map.get(v, tag))
     end
   end
+
+  defp transform(soap_fault() = fault, types) do
+    params = Enum.into(soap_fault(fault), %{}, fn
+      {k, qname() = qname} -> {k, to_string(:erlsom_lib.getUriFromQname(qname))}
+      {k, :undefined} -> {k, nil}
+      {k, v} -> {k, transform(v, types)}
+    end)
+    struct(Fault, params)
+  end
+
+  defp transform(val, types) when is_tuple(val) do
+    type(els: els) = get_type(types, elem(val, 0))
+
+    # TODO if max unbounded, then instead of skipping it, use []
+    Enum.reduce(els, %{}, fn el(alts: [alt(tag: tag, type: t, mn: 1, mx: 1)], mn: min, mx: max, nillable: nillable, nr: pos), acc ->
+      val = elem(val, pos - 1)
+      val = case t do
+        {:"#PRCDATA", _} -> val
+        :any -> val # TODO: improve the layout, %{key: %{:"#any" => %{ data }} is a bit redundant if there's only any
+        _ ->
+          # HAXX: improve
+          if nillable && val == [] do
+            nil
+          else
+            transform(val, types)
+          end
+      end
+      Map.put(acc, tag, val)
+    end)
+  end
+  defp transform(val, types) when is_list(val), do: Enum.map(val, &transform(&1, types))
+  defp transform(:undefined, _types), do: nil
+  defp transform(val, _types), do: val
 end
