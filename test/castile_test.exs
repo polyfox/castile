@@ -11,7 +11,7 @@ defmodule CastileTest do
       assert Map.has_key?(model.operations, "retrieve")
 
       assert {:ok, xml} =
-               Castile.convert(model, :store, %{
+               Castile.create_envelope(model, :store, %{
                  id: 10,
                  first_name: "John",
                  last_name: "Doe",
@@ -26,7 +26,7 @@ defmodule CastileTest do
       path = Path.expand("fixtures/wsdls/CountryInfoService.wsdl", __DIR__)
       assert %Castile.Meta.Model{operations: operations} = model = Castile.init_model(path)
 
-      assert {:ok, xml} = Castile.convert(model, :CountryISOCode, %{sCountryName: "Netherlands"})
+      assert {:ok, xml} = Castile.create_envelope(model, :CountryISOCode, %{sCountryName: "Netherlands"})
 
       assert ~s(<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>) ==
                xml
@@ -40,7 +40,7 @@ defmodule CastileTest do
       assert Map.has_key?(model.operations, "Login")
 
       {:ok, xml} =
-        Castile.convert(model, :Login, %{
+        Castile.create_envelope(model, :Login, %{
           userName: "John",
           password: "1234"
         })

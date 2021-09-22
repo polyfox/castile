@@ -23,6 +23,16 @@ defmodule Castile do
   # TODO: take namespaces as binary
   defdelegate init_model(wsdl_file, namespaces \\ []), to: Castile.Models, as: :init
 
+  @doc """
+  Converts an operation's parameters into XML.
+
+  ## Examples
+
+      iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
+      {:ok, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>"}
+  """
+  defdelegate create_envelope(model, operation, params \\ %{}), to: Castile.Envelope, as: :create
+
   def parse(%Model{model: model(types: types)} = model, operation, body) do
     op = model.operations[to_string(operation)]
     {:ok, resp, _} = :erlsom.scan(body, model.model, output_encoding: :utf8)
@@ -44,24 +54,6 @@ defmodule Castile do
   end
 
 
-  @doc """
-  Converts an operation's parameters into XML.
-
-  ## Examples
-
-      iex> Castile.call(model, :CountryISOCode, %{sCountryName: "Netherlands"})
-      {:ok, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>"}
-  """
-  def convert(%Model{model: model(types: types)} = model, operation, params \\ %{}) do
-    model.operations[to_string(operation)]
-    |> Map.get(:input)
-    |> resolve_element(types)
-    |> cast_type(params, types)
-    |> List.wrap()
-    |> wrap_envelope()
-    |> :erlsom.write(model.model, output: :binary)
-  end
-
   defp resolve_element(nil, _types), do: nil
 
   defp resolve_element(name, types) do
@@ -70,17 +62,6 @@ defmodule Castile do
     alts
     |> List.keyfind(name, alt(:tag))
     |> alt(:type)
-  end
-
-  @spec wrap_envelope(messages :: list, headers :: list) :: term
-  defp wrap_envelope(messages, headers \\ [])
-
-  defp wrap_envelope(messages, []) when is_list(messages) do
-    soap_envelope(body: soap_body(choice: messages))
-  end
-
-  defp wrap_envelope(messages, headers) when is_list(messages) and is_list(headers) do
-    soap_envelope(body: soap_body(choice: messages), header: soap_header(choice: headers))
   end
 
   @spec cast_type(name :: atom, input :: map, types :: term) :: tuple
