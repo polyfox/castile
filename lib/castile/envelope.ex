@@ -29,9 +29,9 @@ defmodule Castile.Envelope do
     |> :erlsom.write(model.model, output: :binary)
   end
 
-  defp resolve_element(nil, _types), do: nil
+  def resolve_element(nil, _types), do: nil
 
-  defp resolve_element(name, types) do
+  def resolve_element(name, types) do
     type(els: [el(alts: alts)]) = get_type(types, :_document)
 
     alts
@@ -39,7 +39,7 @@ defmodule Castile.Envelope do
     |> alt(:type)
   end
 
-  defp get_type(types, name) when is_list(types) do
+  def get_type(types, name) when is_list(types) do
     List.keyfind(types, name, type(:name))
   end
 

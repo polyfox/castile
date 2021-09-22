@@ -56,7 +56,7 @@ defmodule CastileTest do
       path = Path.expand("fixtures/wsdls/CountryInfoService.wsdl", __DIR__)
       model = Castile.init_model(path)
 
-      assert {:ok, "NL"} == Castile.parse(model, :CountryISOCode, @body)
+      assert {:ok, "NL"} == Castile.parse_response(model, :CountryISOCode, @body)
     end
   end
 end
