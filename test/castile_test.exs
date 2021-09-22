@@ -24,7 +24,7 @@ defmodule CastileTest do
 
     test "CountryInfoService" do
       path = Path.expand("fixtures/wsdls/CountryInfoService.wsdl", __DIR__)
-      assert %Castile.Meta.Model{operations: operations} = model = Castile.init_model(path)
+      assert %Castile.Meta.Model{operations: _operations} = model = Castile.init_model(path)
 
       assert {:ok, xml} = Castile.create_envelope(model, :CountryISOCode, %{sCountryName: "Netherlands"})
 
@@ -32,21 +32,20 @@ defmodule CastileTest do
                xml
     end
 
-    @tag :skip
     test "ls_ecommerce" do
       path = Path.expand("fixtures/wsdls/soap_ui_export/UCService.wsdl", __DIR__)
-      model = Castile.init_model(path)
+      model = Castile.init_model(path, [ser: "http://lsretail.com/LSOmniService/EComm/2017/Service"])
 
       assert Map.has_key?(model.operations, "Login")
 
       {:ok, xml} =
         Castile.create_envelope(model, :Login, %{
-          userName: "John",
-          password: "1234"
+          "P:userName": "John",
+          "P:password": "1234"
         })
 
       assert xml ==
-               ~s(<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><Login xmlns:P=\"http://lsretail.com/LSOmniService/Loy/2021\"><userName>John</userName><password>1234</password></Login></soap:Body></soap:Envelope>)
+               ~s(<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><P:Login xmlns:P=\"http://lsretail.com/LSOmniService/Loy/2021\"><P:userName>John</P:userName><P:password>1234</P:password></P:Login></soap:Body></soap:Envelope>)
     end
   end
 
