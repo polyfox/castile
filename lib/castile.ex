@@ -4,26 +4,7 @@ defmodule Castile do
   """
   import Castile.Records.{Erlsom, WSDL, SOAP}
 
-  alias Castile.Model
-
-  defmodule Fault do
-    @moduledoc """
-    Represents a SOAP (1.1) fault.
-    """
-    defexception [:detail, :faultactor, :faultcode, :faultstring]
-
-    @type t :: %__MODULE__{
-            faultcode: String.t(),
-            faultstring: String.t(),
-            faultactor: String.t(),
-            detail: term
-          }
-
-    def message(exception) do
-      exception.faultstring
-    end
-  end
-
+  alias Castile.{Fault, Model}
   # TODO: erlsom value_fun might save us the trouble of transforms on parse
 
   @doc """
