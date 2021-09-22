@@ -1,4 +1,4 @@
-defmodule Castile.WSDL do
+defmodule Castile.Records.WSDL do
   @moduledoc """
   WSDL related records. Used when parsing Erlsom output.
   """

@@ -1,4 +1,4 @@
-defmodule Castile.Erlsom do
+defmodule Castile.Records.Erlsom do
   @moduledoc """
   Erlsom parser records. Used for processing erlsom XSD metadata.
   """

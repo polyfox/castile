@@ -1,4 +1,4 @@
-defmodule Castile.SOAP do
+defmodule Castile.Records.SOAP do
   @moduledoc """
   SOAP related records. Used when parsing Erlsom output.
   """
