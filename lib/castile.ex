@@ -4,7 +4,7 @@ defmodule Castile do
   """
   import Castile.Records.{Erlsom, WSDL, SOAP}
 
-  alias Castile.{Fault, Model}
+  alias Castile.Meta.{Fault, Model}
   # TODO: erlsom value_fun might save us the trouble of transforms on parse
 
   @doc """

@@ -1,4 +1,4 @@
-defmodule Fault do
+defmodule Castile.Meta.Fault do
   @moduledoc """
   Represents a SOAP (1.1) fault.
   """

@@ -24,7 +24,7 @@ defmodule CastileTest do
 
     test "CountryInfoService" do
       path = Path.expand("fixtures/wsdls/CountryInfoService.wsdl", __DIR__)
-      assert %Castile.Model{operations: operations} = model = Castile.init_model(path)
+      assert %Castile.Meta.Model{operations: operations} = model = Castile.init_model(path)
 
       assert {:ok, xml} = Castile.convert(model, :CountryISOCode, %{sCountryName: "Netherlands"})
 
