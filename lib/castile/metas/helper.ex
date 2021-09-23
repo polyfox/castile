@@ -12,27 +12,13 @@ defmodule Castile.Meta.Helper do
 
   @overwrite_prefix_key :overwrite_prefix
   @overwrite_namespace_key :overwrite_namespace
+  @default_erlsom_prefix 'P'
 
   @spec overwrite_prefix({:model, any, any, any, any, any, any}) ::
           {:model, list, list, any, any, any, any}
   def overwrite_prefix(model() = model_to_overwrite) do
     get_overwrite_prefix()
     |> start_overwrite(model_to_overwrite)
-  end
-
-
-  @spec add_extra_namespace_to_envelope({:"soap:Envelope", any, any, any, any}) ::
-          {:"soap:Envelope", any, any, any, any}
-  def add_extra_namespace_to_envelope(soap_envelope() = envelope) do
-    prefix = get_overwrite_prefix()
-    get_overwrite_namespace()
-    |> add_overwrite_envelope_namespace(envelope, prefix)
-  end
-
-  defp add_overwrite_envelope_namespace(nil, envelope, nil), do: envelope
-
-  defp add_overwrite_envelope_namespace(namespace, envelope, prefix) do
-    soap_envelope(envelope, attrs: [{{"xmlns:#{prefix}", []}, namespace}])
   end
 
   defp start_overwrite(nil, org_model), do: org_model
@@ -46,10 +32,20 @@ defmodule Castile.Meta.Helper do
 
   defp overwrite_namespace(model(namespaces: namespaces)) do
     namespaces
-    |> Enum.map(&cast_namespace/1)
+    |> Enum.map(&cast_namespace(&1, get_overwrite_namespace()))
+    |> Enum.uniq() # Delete duplicated namespaces
   end
 
-  defp cast_namespace(ns(uri: _uri, prefix: prefix, element_form_default: _x) = ns_element) do
+  defp cast_namespace(ns(uri: _uri, prefix: prefix, element_form_default: _x) = ns_element, nil) do
+    ns(ns_element, prefix: overwrite(prefix))
+  end
+
+  # Overwrite all namespaces with default prefixes
+  defp cast_namespace(ns(uri: _uri, prefix: prefix, element_form_default: _x) = ns_element, new_namespace) when prefix == @default_erlsom_prefix do
+    ns(ns_element, uri: String.to_charlist(new_namespace), prefix: overwrite(prefix))
+  end
+
+  defp cast_namespace(ns(uri: _uri, prefix: prefix, element_form_default: _x) = ns_element, _overwrite_namespace) do
     ns(ns_element, prefix: overwrite(prefix))
   end
 
@@ -86,7 +82,7 @@ defmodule Castile.Meta.Helper do
 
   defp do_overwrite(value, nil), do: value
 
-  defp do_overwrite('P', replace), do: Atom.to_charlist(replace)
+  defp do_overwrite(@default_erlsom_prefix, replace), do: Atom.to_charlist(replace)
 
   defp do_overwrite(value, replace) when is_atom(value) do
     value

@@ -58,8 +58,8 @@ defmodule CastileTest do
       :ok = Application.delete_env(:castile, :overwrite_prefix)
       :ok = Application.delete_env(:castile, :overwrite_namespace)
 
-      assert xml ==
-               ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service"><soap:Header></soap:Header><soap:Body><ser:Login><ser:userName>John</ser:userName><ser:password>1234</ser:password></ser:Login></soap:Body></soap:Envelope>)
+      assert ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Header></soap:Header><soap:Body><ser:Login xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service"><ser:userName>John</ser:userName><ser:password>1234</ser:password></ser:Login></soap:Body></soap:Envelope>) ==
+               xml
     end
   end
 

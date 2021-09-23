@@ -26,7 +26,6 @@ defmodule Castile.Envelope do
     |> cast_type(params, types)
     |> List.wrap()
     |> wrap_envelope()
-    |> Castile.Meta.Helper.add_extra_namespace_to_envelope()
     |> :erlsom.write(model.model, output: :binary)
   end
 
