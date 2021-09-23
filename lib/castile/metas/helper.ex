@@ -15,7 +15,10 @@ defmodule Castile.Meta.Helper do
   @spec overwrite_prefix({:model, any, any, any, any, any, any}) ::
           {:model, list, list, any, any, any, any}
   def overwrite_prefix(model() = model_to_overwrite) do
-    model(model_to_overwrite, types: overwrite_type(model_to_overwrite), namespaces: overwrite_namespace(model_to_overwrite))
+    model(model_to_overwrite,
+      types: overwrite_type(model_to_overwrite),
+      namespaces: overwrite_namespace(model_to_overwrite)
+    )
   end
 
   defp overwrite_namespace(model(namespaces: namespaces)) do
@@ -33,15 +36,17 @@ defmodule Castile.Meta.Helper do
   end
 
   defp cast_type(type(name: name, els: els) = type_element) do
-    new_els = els
-    |> Enum.map(&cast_el/1)
+    new_els =
+      els
+      |> Enum.map(&cast_el/1)
 
     type(type_element, name: overwrite(name), els: new_els)
   end
 
   defp cast_el(el(alts: alts) = el_element) do
-    new_alts = alts
-    |> Enum.map(&cast_alt/1)
+    new_alts =
+      alts
+      |> Enum.map(&cast_alt/1)
 
     el(el_element, alts: new_alts)
   end
@@ -58,14 +63,14 @@ defmodule Castile.Meta.Helper do
 
   defp do_overwrite(value, nil), do: value
 
+  defp do_overwrite('P', replace), do: Atom.to_charlist(replace)
+
   defp do_overwrite(value, replace) when is_atom(value) do
     value
     |> Atom.to_string()
     |> String.replace("P:", "#{replace}:")
     |> String.to_atom()
   end
-
-  defp do_overwrite('P', replace), do: Atom.to_charlist(replace)
 
   defp do_overwrite(value, _replace), do: value
 
