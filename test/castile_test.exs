@@ -18,7 +18,7 @@ defmodule CastileTest do
                  projects: ["First project", "Second project"]
                })
 
-      assert ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><erlsom:contact xmlns:erlsom="http://example.com/contacts.xsd"><id>10</id><first_name>John</first_name><last_name>Doe</last_name><projects>First project</projects><projects>Second project</projects></erlsom:contact></soap:Body></soap:Envelope>) ==
+      assert ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Header></soap:Header><soap:Body><erlsom:contact xmlns:erlsom="http://example.com/contacts.xsd"><id>10</id><first_name>John</first_name><last_name>Doe</last_name><projects>First project</projects><projects>Second project</projects></erlsom:contact></soap:Body></soap:Envelope>) ==
                xml
     end
 
@@ -28,7 +28,7 @@ defmodule CastileTest do
 
       assert {:ok, xml} = Castile.create_envelope(model, :CountryISOCode, %{sCountryName: "Netherlands"})
 
-      assert ~s(<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>) ==
+      assert ~s(<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Header></soap:Header><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>) ==
                xml
     end
 
@@ -46,7 +46,7 @@ defmodule CastileTest do
         })
 
       assert xml ==
-               ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service"><soap:Header/><soap:Body><ser:Login><ser:userName>John</ser:userName><ser:password>1234</ser:password></ser:Login></soap:Body></soap:Envelope>)
+               ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service"><soap:Header></soap:Header><soap:Body><ser:Login><ser:userName>John</ser:userName><ser:password>1234</ser:password></ser:Login></soap:Body></soap:Envelope>)
     end
   end
 
@@ -62,6 +62,7 @@ defmodule CastileTest do
 
   describe "overwrite prefix" do
     test "ste ser prefix" do
+      Application.put_env(:castile, :overwrite_prefix, :ser)
       org_model = Castile.Fixtures.XMLModels.org_model()
       assert Castile.Fixtures.XMLModels.overwrite_model() == Castile.Meta.Helper.overwrite_prefix(org_model)
     end

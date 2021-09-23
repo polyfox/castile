@@ -92,11 +92,7 @@ defmodule Castile.Envelope do
   @spec wrap_envelope(messages :: list, headers :: list) :: term
   defp wrap_envelope(messages, headers \\ [])
 
-  defp wrap_envelope(messages, []) when is_list(messages) do
-    soap_envelope(body: soap_body(choice: messages))
-  end
-
-  defp wrap_envelope(messages, headers) when is_list(messages) and is_list(headers) do
+  defp wrap_envelope(messages, headers) when is_list(messages) do
     soap_envelope(body: soap_body(choice: messages), header: soap_header(choice: headers))
   end
 end
