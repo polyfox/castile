@@ -84,9 +84,10 @@ defmodule Castile.Envelope do
 
     case value do
       v when is_list(v) -> Enum.map(v, fn v -> conv.(Map.get(v, tag)) end)
-      v when is_map(v) -> conv.(Map.get(v, tag))
+      v when is_map(v) -> (conv.(Map.get(v, tag)))
     end
   end
+
 
   @spec wrap_envelope(messages :: list, headers :: list) :: term
   defp wrap_envelope(messages, headers \\ [])

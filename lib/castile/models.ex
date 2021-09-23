@@ -5,7 +5,7 @@ defmodule Castile.Models do
 
   import Castile.Records.{WSDL, SOAP}
 
-  alias Castile.Meta.Model
+  alias Castile.Meta.{Helper, Model}
 
   @spec init(Path.t(), namespaces :: list) :: Model.t()
   def init(wsdl_file, namespaces \\ []) do
@@ -28,6 +28,8 @@ defmodule Castile.Models do
 
     # parse wsdl
     {model, wsdls} = parse_wsdls([wsdl_file], namespaces, wsdl_model, options, {nil, []})
+
+    model = Helper.overwrite_prefix(model)
 
     # now compile envelope.xsd, and add Model
     {:ok, envelope_model} =

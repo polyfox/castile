@@ -15,6 +15,6 @@ defmodule Castile.Records.Erlsom do
   defrecord :attr, :att, [:name, :nr, :opt, :tp]
 
   # erlsom internals
-  defrecord :ns, [:uri, :prefix]
+  defrecord :ns, [:uri, :prefix, :element_form_default]
   defrecord :qname, [:uri, :local_part, :prefix, :mapped_prefix]
 end
