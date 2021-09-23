@@ -2,9 +2,10 @@
 
 # TODO VIU - LS eCommerce
 
-- [ ] Transform types the correct way: now = `:"P:Login"` expected: `:login`
+- [X] Transform types the correct way: now = `:"P:Login"` expected: `:login`
 - [ ] Create a correct envelop
 - [ ] ...
+
 
 Castile is a modern Elixir SOAP API client.
 It borrows ideas heavily from [Detergent](https://github.com/devinus/detergent)/yaws.
@@ -60,7 +61,19 @@ model = Castile.init_model("BLZService.wsdl")
 
 ## LS eCommerce SOAP
 
+### Overwrite the default erlsom prefix
+Castile uses Erlang's `erlsom` lib to parse xml files. Somehow `erlosm` adds a default prefix `P:` to the types. LS eCommerce SOAP expects a `ser:` prefix.
+
+To overwrite the default prefix you need to add a config variable.
+
+In your `config.exs` file, add:
+```Elixir
+config :castile, overwrite_prefix: :ser
+```
+
 **Envelope**
+
+To have an `ser:` prefix yo ne
 
 Looks like:
 ```xml

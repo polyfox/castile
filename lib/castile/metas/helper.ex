@@ -1,6 +1,11 @@
 defmodule Castile.Meta.Helper do
   @moduledoc """
-  Override erlsom default prefix ('P') with a custom prefix
+  Override erlsom default prefix ('P') with a custom prefix.
+
+  For some reason the ls ecommerce wsdl and soap files don't have a valid prefix for erlsom.
+  Erlsom overwrites the not existing prefix in https://github.com/willemdj/erlsom/blob/master/src/erlsom_lib.erl#L360.
+
+  This helper does a manual overwrite if you specify an `:overwrite_prefix` in your `config.exs` file.
   """
 
   import Castile.Records.{Erlsom}
