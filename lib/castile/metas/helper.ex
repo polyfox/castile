@@ -15,9 +15,16 @@ defmodule Castile.Meta.Helper do
   @spec overwrite_prefix({:model, any, any, any, any, any, any}) ::
           {:model, list, list, any, any, any, any}
   def overwrite_prefix(model() = model_to_overwrite) do
-    model(model_to_overwrite,
-      types: overwrite_type(model_to_overwrite),
-      namespaces: overwrite_namespace(model_to_overwrite)
+    get_overwrite_prefix()
+    |> start_overwrite(model_to_overwrite)
+  end
+
+  defp start_overwrite(nil, org_model), do: org_model
+
+  defp start_overwrite(_prefix, org_model) do
+    model(org_model,
+      types: overwrite_type(org_model),
+      namespaces: overwrite_namespace(org_model)
     )
   end
 
