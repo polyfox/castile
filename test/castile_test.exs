@@ -3,6 +3,7 @@ defmodule CastileTest do
   # doctest Castile
 
   describe "init model" do
+    # @tag :skip
     test "example.wsdl" do
       path = Path.expand("fixtures/wsdls/example.wsdl", __DIR__)
       model = Castile.init_model(path)
@@ -22,11 +23,13 @@ defmodule CastileTest do
                xml
     end
 
+    # @tag :skip
     test "CountryInfoService" do
       path = Path.expand("fixtures/wsdls/CountryInfoService.wsdl", __DIR__)
       assert %Castile.Meta.Model{operations: _operations} = model = Castile.init_model(path)
 
-      assert {:ok, xml} = Castile.create_envelope(model, :CountryISOCode, %{sCountryName: "Netherlands"})
+      assert {:ok, xml} =
+               Castile.create_envelope(model, :CountryISOCode, %{sCountryName: "Netherlands"})
 
       assert ~s(<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Header></soap:Header><soap:Body><CountryISOCode xmlns=\"http://www.oorsprong.org/websamples.countryinfo\"><sCountryName>Netherlands</sCountryName></CountryISOCode></soap:Body></soap:Envelope>) ==
                xml
@@ -35,6 +38,13 @@ defmodule CastileTest do
     test "ls_ecommerce" do
       path = Path.expand("fixtures/wsdls/soap_ui_export/UCService.wsdl", __DIR__)
       Application.put_env(:castile, :overwrite_prefix, :ser)
+
+      Application.put_env(
+        :castile,
+        :overwrite_namespace,
+        "http://lsretail.com/LSOmniService/EComm/2017/Service"
+      )
+
       model = Castile.init_model(path)
 
       assert Map.has_key?(model.operations, "Login")
@@ -45,11 +55,15 @@ defmodule CastileTest do
           "ser:password": "1234"
         })
 
+      :ok = Application.delete_env(:castile, :overwrite_prefix)
+      :ok = Application.delete_env(:castile, :overwrite_namespace)
+
       assert xml ==
                ~s(<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service"><soap:Header></soap:Header><soap:Body><ser:Login><ser:userName>John</ser:userName><ser:password>1234</ser:password></ser:Login></soap:Body></soap:Envelope>)
     end
   end
 
+  # @tag :skip
   describe "XML body parser" do
     @body ~s(<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n  <soap:Body>\r\n    <m:CountryISOCodeResponse xmlns:m=\"http://www.oorsprong.org/websamples.countryinfo\">\r\n      <m:CountryISOCodeResult>NL</m:CountryISOCodeResult>\r\n    </m:CountryISOCodeResponse>\r\n  </soap:Body>\r\n</soap:Envelope>)
     test "parse iso code response" do
@@ -60,11 +74,14 @@ defmodule CastileTest do
     end
   end
 
+  # @tag :skip
   describe "overwrite prefix" do
     test "ste ser prefix" do
       Application.put_env(:castile, :overwrite_prefix, :ser)
       org_model = Castile.Fixtures.XMLModels.org_model()
-      assert Castile.Fixtures.XMLModels.overwrite_model() == Castile.Meta.Helper.overwrite_prefix(org_model)
+
+      assert Castile.Fixtures.XMLModels.overwrite_model() ==
+               Castile.Meta.Helper.overwrite_prefix(org_model)
     end
   end
 end

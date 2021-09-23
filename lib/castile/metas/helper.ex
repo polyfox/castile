@@ -8,15 +8,31 @@ defmodule Castile.Meta.Helper do
   This helper does a manual overwrite if you specify an `:overwrite_prefix` in your `config.exs` file.
   """
 
-  import Castile.Records.{Erlsom}
+  import Castile.Records.{Erlsom, SOAP}
 
   @overwrite_prefix_key :overwrite_prefix
+  @overwrite_namespace_key :overwrite_namespace
 
   @spec overwrite_prefix({:model, any, any, any, any, any, any}) ::
           {:model, list, list, any, any, any, any}
   def overwrite_prefix(model() = model_to_overwrite) do
     get_overwrite_prefix()
     |> start_overwrite(model_to_overwrite)
+  end
+
+
+  @spec add_extra_namespace_to_envelope({:"soap:Envelope", any, any, any, any}) ::
+          {:"soap:Envelope", any, any, any, any}
+  def add_extra_namespace_to_envelope(soap_envelope() = envelope) do
+    prefix = get_overwrite_prefix()
+    get_overwrite_namespace()
+    |> add_overwrite_envelope_namespace(envelope, prefix)
+  end
+
+  defp add_overwrite_envelope_namespace(nil, envelope, nil), do: envelope
+
+  defp add_overwrite_envelope_namespace(namespace, envelope, prefix) do
+    soap_envelope(envelope, attrs: [{{"xmlns:#{prefix}", []}, namespace}])
   end
 
   defp start_overwrite(nil, org_model), do: org_model
@@ -84,5 +100,10 @@ defmodule Castile.Meta.Helper do
   defp get_overwrite_prefix do
     :castile
     |> Application.get_env(@overwrite_prefix_key)
+  end
+
+  defp get_overwrite_namespace do
+    :castile
+    |> Application.get_env(@overwrite_namespace_key)
   end
 end
