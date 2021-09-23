@@ -3,8 +3,9 @@
 # TODO VIU - LS eCommerce
 
 - [X] Transform types the correct way: now = `:"P:Login"` expected: `:login`
-- [ ] Create a correct envelop
-- [ ] ...
+- [X] Create a correct envelop
+- [X] Soap UI Mock server accepts envelop and returns valid response.
+- [ ] Parse XML response from mock server
 
 
 Castile is a modern Elixir SOAP API client.
@@ -71,16 +72,26 @@ In your `config.exs` file, add:
 config :castile, overwrite_prefix: :ser
 ```
 
+**Namespaces**
+
+Castile will add multiple namespaces but at the end we need only one `xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service"`.
+
+To overwrite the logic we can add the namespace manually:
+```Elixir
+config :castile, overwrite_namespace: "http://lsretail.com/LSOmniService/EComm/2017/Service"
+```
+
+
 **Envelope**
 
 To have an `ser:` prefix yo ne
 
 Looks like:
 ```xml
-      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service">
+      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
         <soapenv:Header/>
         <soapenv:Body>
-            <ser:Login>
+            <ser:Login xmlns:ser="http://lsretail.com/LSOmniService/EComm/2017/Service">
               <ser:userName>tom</ser:userName>
               <ser:password>tom.1</ser:password>
               <ser:deviceId></ser:deviceId>
